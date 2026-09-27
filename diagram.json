@@ -15,7 +15,7 @@
       "id": "dht22",
       "top": 60,
       "left": 340,
-      "attrs": { "temperature": 25.4, "humidity": 61.2 }
+      "attrs": { "temperature": "25.4", "humidity": "61.2" }
     },
     {
       "type": "wokwi-resistor",
@@ -56,6 +56,6 @@
     [ "oled:SCL", "stm32:B6", "purple", [] ],
     [ "oled:SDA", "stm32:B7", "purple", [] ]
   ],
-  "serialMonitor": { "display": "attached" },
+  "serialMonitor": { "display": "always" },
   "dependencies": {}
 }

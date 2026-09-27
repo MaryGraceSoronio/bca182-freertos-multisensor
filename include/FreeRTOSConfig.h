@@ -106,24 +106,31 @@ extern uint32_t SystemCoreClock;
 /*-----------------------------------------------------------
  * Cortex-M3 interrupt priorities
  *
- * Interrupts that priority-encode numerically below
+ * Interrupts with a priority value numerically below
  * configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY (5) must never call a FreeRTOS
  * "FromISR" API.  No peripheral interrupt in this application does, because
  * every driver is polled from a task.
+ *
+ * configPRIO_BITS is deliberately NOT defined.  FreeRTOS's optional port.c
+ * self-check compares it with the number of implemented priority bits that
+ * are read back from the NVIC interrupt-priority registers (NVIC->IP[]).
+ * The Wokwi STM32F103 emulator does not model those registers: writing 0xFF
+ * to NVIC->IP[0] at 0xE000E400 reads back as 0x00 (verified in simulation),
+ * so the check can never be satisfied there and it would stop the scheduler
+ * before the first task runs.  Leaving the macro undefined compiles that one
+ * optional check out; the shift that replaces it is written out literally
+ * below and still uses the four priority bits the STM32F103 reference manual
+ * specifies - the same value __NVIC_PRIO_BITS would have supplied.  Every
+ * other configASSERT, including the port's interrupt-priority validation in
+ * vPortValidateInterruptPriority(), stays enabled.
  *----------------------------------------------------------*/
-#ifdef __NVIC_PRIO_BITS
-#define configPRIO_BITS                         __NVIC_PRIO_BITS
-#else
-#define configPRIO_BITS                         4
-#endif
-
 #define configLIBRARY_LOWEST_INTERRUPT_PRIORITY      15
 #define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY 5
 
 #define configKERNEL_INTERRUPT_PRIORITY \
-    ( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << ( 8 - configPRIO_BITS ) )
+    ( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << 4 )
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY \
-    ( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << ( 8 - configPRIO_BITS ) )
+    ( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << 4 )
 
 /*-----------------------------------------------------------
  * Assert
@@ -138,6 +145,48 @@ void vAssertCalled( const char *pcFile, uint32_t ulLine );
 
 #define configASSERT( x ) \
     if( ( x ) == 0 ) { vAssertCalled( ( const char * ) __FILE__, ( uint32_t ) __LINE__ ); }
+
+/*-----------------------------------------------------------
+ * Thread-mode yield - Wokwi emulator workaround
+ *
+ * The stock Cortex-M3 port yields from a task with a bare store:
+ *
+ *     *( ( volatile uint32_t * ) 0xE000ED04 ) = 0x10000000;  // ICSR.PENDSVSET
+ *     __asm volatile ( "dsb sy\n isb sy" );
+ *
+ * On real silicon PendSV is taken straight after that store, and the hardware
+ * stacks the address of the *next* instruction, so the task resumes one
+ * instruction past the yield.  The Wokwi STM32F103 model enters PendSV while
+ * the store is still executing instead, and stacks the address of the store
+ * itself.  Whenever the yielding task is also the one PendSV picks again - a
+ * task that has just called vTaskDelay() and is still the highest priority
+ * ready task, for example - it resumes on the very instruction that pends
+ * PendSV, pends it again, and spins there forever.  Measured in simulation:
+ * PC frozen at vTaskDelay+0x0C (the str instruction), r3 = 0xE000ED04,
+ * r2 = 0x10000000.
+ *
+ * Routing the yield through SVC removes the store from the picture entirely:
+ * SVC_Handler saves r4-r11 plus pxTopOfStack, calls vTaskSwitchContext(),
+ * restores the winner and returns straight to thread mode.  No second
+ * exception is raised, so there is no stacked PC for the emulator to get
+ * wrong.  A yield taken inside a critical section is deferred to
+ * vPortExitCritical().  The handler is installed by the WOKWI_PORT_PATCH in
+ * scripts/freertos_build.py.
+ *
+ * portYIELD() itself is deliberately left alone.  It is only reachable
+ * through portEND_SWITCHING_ISR()/portYIELD_FROM_ISR(), i.e. from an
+ * interrupt, where the original store already happens in handler mode and
+ * behaves correctly - and an SVC issued from handler mode would fault.  No
+ * source file in this application calls taskYIELD() directly, and
+ * configIDLE_SHOULD_YIELD's idle-task taskYIELD() is unreachable because no
+ * task other than the idle task itself is ever created at priority 0.
+ *
+ * portYIELD_WITHIN_API is what every blocking FreeRTOS call (vTaskDelay,
+ * vTaskDelayUntil, xQueueReceive, ...) expands its re-schedule into, and
+ * FreeRTOS.h only supplies a default under #ifndef, so it is the supported
+ * override point.
+ *----------------------------------------------------------*/
+#define portYIELD_WITHIN_API()  do { __asm volatile ( "svc 0" ); } while( 0 )
 
 /*-----------------------------------------------------------
  * Kernel entry points
