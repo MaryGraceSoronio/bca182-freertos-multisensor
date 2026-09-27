@@ -27,6 +27,7 @@
 
 #include "rtos_objects.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "stm32f1xx_hal.h"
@@ -89,6 +90,27 @@ void serial_write( const char *text )
     HAL_UART_Transmit(&huart1, (uint8_t *)text, (uint16_t)strlen(text), 1000U);
 }
 
+/* Register-level transmit: owns no HAL state, cannot time out and therefore
+ * always delivers the whole message, even from interrupt context or while a
+ * critical section is held.  Used by the fault hooks below, where the normal
+ * serial_write() path (HAL + timeout) must not be trusted. */
+static void serial_write_raw( const char *text )
+{
+    while( *text != '\0' )
+    {
+        while( ( USART1->SR & USART_SR_TXE ) == 0U )
+        {
+        }
+        USART1->DR = ( uint16_t )( uint8_t )*text;
+        text++;
+    }
+}
+
+static void serial_write_fault( const char *text )
+{
+    serial_write_raw(text);
+}
+
 extern "C" void SysTick_Handler( void )
 {
     HAL_IncTick();
@@ -101,6 +123,7 @@ extern "C" void SysTick_Handler( void )
 
 extern "C" void vApplicationMallocFailedHook( void )
 {
+    serial_write_fault("ERR: malloc failed\r\n");
     taskDISABLE_INTERRUPTS();
     for( ;; )
     {
@@ -110,8 +133,14 @@ extern "C" void vApplicationMallocFailedHook( void )
 extern "C" void vApplicationStackOverflowHook( TaskHandle_t xTask,
                                                char *pcTaskName )
 {
+    /* Reached with the offending task's stack already exhausted, so nothing
+     * may be formatted into a local buffer here - the line is assembled from
+     * string literals and the task name only. */
+    serial_write_fault("ERR: stack overflow in ");
+    serial_write_fault( ( pcTaskName != nullptr ) ? pcTaskName : "?" );
+    serial_write_fault("\r\n");
+
     ( void ) xTask;
-    ( void ) pcTaskName;
     taskDISABLE_INTERRUPTS();
     for( ;; )
     {
@@ -120,8 +149,14 @@ extern "C" void vApplicationStackOverflowHook( TaskHandle_t xTask,
 
 extern "C" void vAssertCalled( const char *pcFile, uint32_t ulLine )
 {
-    ( void ) pcFile;
-    ( void ) ulLine;
+    char message[192];
+
+    snprintf(message, sizeof(message), "ERR: assert %s:%lu\r\n",
+             pcFile, (unsigned long)ulLine);
+    serial_write_fault(message);
+
+    ( void )pcFile;
+    ( void )ulLine;
     taskDISABLE_INTERRUPTS();
     for( ;; )
     {
