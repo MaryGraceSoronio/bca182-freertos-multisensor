@@ -14,6 +14,8 @@ Real-Time Multisensor Room Monitoring System - BCA182 Laboratory Activity 1.
 | PA10   | USART1 RX                       | serial monitor    |
 | PA0    | LDR / photoresistor AO          | ADC1_IN0 (M5)     |
 | PA1    | DHT22 SDA (10 k pull-up, 3.3 V) | GPIO open drain   |
+| PB6    | I2C1 SCL -> OLED SCL            | I2C (AF open drain, pull-up) |
+| PB7    | I2C1 SDA -> OLED SDA            | I2C (AF open drain, pull-up) |
 | PC13   | onboard LED                     | GPIO (M2)         |
 
 ## Building

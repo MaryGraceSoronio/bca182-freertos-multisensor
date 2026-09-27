@@ -5,10 +5,9 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
- * Milestone 6 (PART V, sections 22-25): SensorTask samples on a fixed
- * vTaskDelayUntil() period and publishes each SensorData sample to the
- * consumer queues.  Milestone 4-5 added the DHT22 and LDR drivers,
- * milestone 3 two simple FreeRTOS tasks that both block between executions.
+ * Milestone 7 (PART VI, sections 26-27): DisplayTask owns the SSD1306 OLED
+ * and renders the sample it receives from displayQueue.  Milestone 6 added
+ * SensorData and the consumer queues on a fixed vTaskDelayUntil() period.
  *
  * Section 41 requires this file to stay focused on the four stages below.
  */
@@ -22,6 +21,7 @@
 
 #include "rtos_objects.h"
 #include "sensors.h"
+#include "display.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
@@ -49,6 +49,7 @@ extern "C" void app_main(void)
     Periph_GPIO_Init();
     serial_init();
     sensors_init();
+    display_init();
 
     serial_write(BANNER_1);
     serial_write(BANNER_2);
@@ -60,6 +61,7 @@ extern "C" void app_main(void)
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
+    xTaskCreate(DisplayTask, "Display", 256, nullptr, 1, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();
