@@ -24,6 +24,13 @@
       "left": 340,
       "rotate": 90,
       "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr",
+      "top": 300,
+      "left": 340,
+      "attrs": { "lux": "500" }
     }
   ],
   "connections": [
@@ -33,7 +40,10 @@
     [ "dht22:GND", "stm32:GND.1", "black", [] ],
     [ "dht22:SDA", "stm32:A1", "blue", [] ],
     [ "r_dht:1", "stm32:3.3", "red", [] ],
-    [ "r_dht:2", "stm32:A1", "blue", [] ]
+    [ "r_dht:2", "stm32:A1", "blue", [] ],
+    [ "ldr:VCC", "stm32:3.3", "red", [] ],
+    [ "ldr:GND", "stm32:GND.1", "black", [] ],
+    [ "ldr:AO", "stm32:A0", "orange", [] ]
   ],
   "serialMonitor": { "display": "attached" },
   "dependencies": {}

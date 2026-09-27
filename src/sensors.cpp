@@ -2,7 +2,7 @@
  * sensors.cpp - BCA182 Laboratory Activity 1
  * Real-Time Multisensor Room Monitoring System
  *
- * DHT22 single-wire driver + SensorTask.
+ * DHT22 single-wire driver, LDR/ADC sampling and SensorTask.
  *
  * Timing source
  * -------------
@@ -31,6 +31,10 @@
 /*-----------------------------------------------------------
  * Pin assignment
  *----------------------------------------------------------*/
+#define LDR_ADC_CHANNEL       ADC_CHANNEL_0   /* PA0 = ADC1_IN0 */
+#define LDR_TIMEOUT_MS        10U
+#define LDR_FULL_SCALE        4095U           /* 12 bit, right aligned */
+
 #define DHT22_GPIO_PORT   GPIOA
 #define DHT22_GPIO_PIN    GPIO_PIN_1
 #define DHT22_CYCLES_PER_US  ( SystemCoreClock / 1000000U )
@@ -49,11 +53,16 @@ static void dwt_init(void);
 static void dht_delay_us(uint32_t microseconds);
 static int  dht_wait_level(GPIO_PinState level, uint32_t timeout_us);
 static void dht22_gpio_init(void);
+static void ldr_adc_init(void);
+
+static ADC_HandleTypeDef hadc1;
+static bool ldr_ready = false;
 
 void sensors_init(void)
 {
     dwt_init();
     dht22_gpio_init();
+    ldr_adc_init();
 }
 
 /** PA1 as open-drain with the internal pull-up; the 10 k resistor in the
@@ -72,6 +81,118 @@ static void dht22_gpio_init(void)
 
     /* Release the line (open drain driving '1' = high impedance). */
     HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_SET);
+}
+
+/**
+ * ADC bring-up for the photoresistor module.
+ *
+ * The factory-start-up calibration (HAL_ADCEx_Calibration_Start) is
+ * deliberately not called: it waits for a calibration-done flag with no
+ * timeout parameter, and Wokwi only implements "ADC1 basic conversion".  A
+ * simulated converter already reports an ideal result, so the calibration
+ * would buy nothing on the target of this laboratory activity and could
+ * stall startup forever.  On real hardware it should be re-enabled.
+ */
+static void ldr_adc_init(void)
+{
+    ADC_ChannelConfTypeDef channel = {0};
+
+    hadc1.Instance                  = ADC1;
+    hadc1.Init.DataAlign             = ADC_DATAALIGN_RIGHT;
+    hadc1.Init.ScanConvMode          = ADC_SCAN_DISABLE;
+    hadc1.Init.ContinuousConvMode    = DISABLE;
+    hadc1.Init.NbrOfConversion       = 1;
+    hadc1.Init.DiscontinuousConvMode = DISABLE;
+    hadc1.Init.NbrOfDiscConversion   = 1;
+    hadc1.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
+
+    if( HAL_ADC_Init(&hadc1) != HAL_OK )
+    {
+        ldr_ready = false;
+        return;
+    }
+
+    channel.Channel      = LDR_ADC_CHANNEL;
+    channel.Rank         = ADC_REGULAR_RANK_1;
+    channel.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+
+    if( HAL_ADC_ConfigChannel(&hadc1, &channel) != HAL_OK )
+    {
+        ldr_ready = false;
+        return;
+    }
+
+    ldr_ready = true;
+}
+
+/**
+ * HAL callback: clock the ADC and put PA0 in analog mode.
+ *
+ * The ADC clock comes from PCLK2 divided by 6, which keeps it at 12 MHz for
+ * the 72 MHz system clock and inside the 14 MHz limit of the reference
+ * manual.  Section 23 also rules out DMA, so no DMA channel is requested
+ * here.
+ */
+void HAL_ADC_MspInit(ADC_HandleTypeDef *adc_handle)
+{
+    RCC_PeriphCLKInitTypeDef periph_clock = {0};
+    GPIO_InitTypeDef gpio = {0};
+
+    if( adc_handle->Instance != ADC1 )
+    {
+        return;
+    }
+
+    __HAL_RCC_ADC1_CLK_ENABLE();
+
+    periph_clock.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+    periph_clock.AdcClockSelection     = RCC_ADCPCLK2_DIV6;
+    ( void )HAL_RCCEx_PeriphCLKConfig(&periph_clock);
+
+    gpio.Pin   = GPIO_PIN_0;
+    gpio.Mode  = GPIO_MODE_ANALOG;
+    gpio.Pull  = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &gpio);
+}
+
+bool ldr_read_raw(uint16_t *raw_value)
+{
+    if( ( !ldr_ready ) || ( raw_value == nullptr ) )
+    {
+        return false;
+    }
+
+    if( HAL_ADC_Start(&hadc1) != HAL_OK )
+    {
+        return false;
+    }
+
+    bool converted = ( HAL_ADC_PollForConversion(&hadc1, LDR_TIMEOUT_MS) == HAL_OK );
+
+    if( converted )
+    {
+        *raw_value = ( uint16_t )HAL_ADC_GetValue(&hadc1);
+    }
+
+    ( void )HAL_ADC_Stop(&hadc1);
+
+    return converted;
+}
+
+uint8_t ldr_to_light_percent(uint16_t raw_value)
+{
+    if( raw_value > LDR_FULL_SCALE )
+    {
+        raw_value = ( uint16_t )LDR_FULL_SCALE;
+    }
+
+    /* Inverted on purpose: a low reading means a bright scene.  The
+     * +2047 term rounds to nearest instead of truncating. */
+    uint32_t scaled = ( ( uint32_t )( LDR_FULL_SCALE - raw_value ) * 100U + 2047U ) /
+                      LDR_FULL_SCALE;
+
+    return ( uint8_t )scaled;
 }
 
 static void dwt_init(void)
@@ -197,8 +318,9 @@ bool dht22_read(float *temperature_c, float *humidity_percent)
 }
 
 /**
- * Section 20 / section 22: sample the DHT22 and report the result over the
- * serial monitor before anything else in the system is wired to it.
+ * Section 20 / section 21 / section 22: sample the DHT22 and the LDR and
+ * report the results over the serial monitor before anything else in the
+ * system is wired to them.
  *
  * Section 19 - the loop performs finite work and then blocks for two
  * seconds, so it never monopolises the CPU.  Milestone 6 replaces the delay
@@ -208,9 +330,10 @@ void SensorTask(void *argument)
 {
     ( void )argument;
 
-    float temperature = 0.0F;
-    float humidity    = 0.0F;
-    char  line[48];
+    float   temperature = 0.0F;
+    float   humidity    = 0.0F;
+    uint16_t raw_light  = 0U;
+    char    line[48];
 
     for( ;; )
     {
@@ -225,6 +348,17 @@ void SensorTask(void *argument)
         else
         {
             serial_write("DHT22 read failed\r\n");
+        }
+
+        if( ldr_read_raw(&raw_light) )
+        {
+            snprintf(line, sizeof(line), "Light level: %u %%\r\n",
+                     ldr_to_light_percent(raw_light));
+            serial_write(line);
+        }
+        else
+        {
+            serial_write("LDR read failed\r\n");
         }
 
         vTaskDelay(pdMS_TO_TICKS(2000));
