@@ -27,6 +27,8 @@
 
 #include "rtos_objects.h"
 
+#include <string.h>
+
 #include "stm32f1xx_hal.h"
 
 #include "FreeRTOS.h"
@@ -36,10 +38,43 @@
  * Not declared by portmacro.h, hence the prototype here. */
 extern "C" void xPortSysTickHandler( void );
 
+static UART_HandleTypeDef huart1;
+
 void rtos_objects_create( void )
 {
     /* Queues (milestone 6), event group (milestone 11) and the serial mutex
      * (milestone 12) are added here as the subsystems they serve appear. */
+}
+
+/** USART1, 115200 8N1 - matches monitor_speed in platformio.ini. */
+void serial_init( void )
+{
+    __HAL_RCC_USART1_CLK_ENABLE();
+
+    huart1.Instance          = USART1;
+    huart1.Init.BaudRate     = 115200;
+    huart1.Init.WordLength   = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits     = UART_STOPBITS_1;
+    huart1.Init.Parity       = UART_PARITY_NONE;
+    huart1.Init.Mode         = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    if( HAL_UART_Init(&huart1) != HAL_OK )
+    {
+        taskDISABLE_INTERRUPTS();
+        for( ;; )
+        {
+        }
+    }
+}
+
+void serial_write( const char *text )
+{
+    /* Milestone 12 wraps this HAL_UART_Transmit() call in the section 36
+     * mutex.  Before the scheduler runs the mutex must not be taken, so the
+     * guard is added together with the mutex itself. */
+    HAL_UART_Transmit(&huart1, (uint8_t *)text, (uint16_t)strlen(text), 1000U);
 }
 
 extern "C" void SysTick_Handler( void )

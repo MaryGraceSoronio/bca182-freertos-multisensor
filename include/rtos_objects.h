@@ -40,6 +40,27 @@ extern "C" {
  */
 void rtos_objects_create(void);
 
+/**
+ * Bring up USART1 (115200 8N1, PA9/PA10) - part of hardware initialisation.
+ *
+ * The serial port lives in this module rather than in main.cpp because
+ * section 36 makes it a shared resource that must be guarded by a FreeRTOS
+ * mutex; keeping the peripheral handle, the writer and the mutex together
+ * means there is exactly one place where that protection is applied
+ * (milestone 12).  Section 40 allows the file list to differ from the
+ * suggested one when there is a technical justification.
+ */
+void serial_init(void);
+
+/**
+ * Blocking transmit of a zero-terminated string.
+ *
+ * Called from task context after the scheduler has started.  Section 36's
+ * mutex is taken here in milestone 12; until then the USART is used directly
+ * and the diagnostic tasks keep their output phases apart instead.
+ */
+void serial_write(const char *text);
+
 #ifdef __cplusplus
 }
 #endif

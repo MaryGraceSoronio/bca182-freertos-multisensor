@@ -5,7 +5,8 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
- * Milestone 3 (PART III, sections 17-19): two simple FreeRTOS tasks that both
+ * Milestone 4 (PART IV, sections 20-21): SensorTask samples the DHT22 and
+ * prints its reading.  Milestone 3 added two simple FreeRTOS tasks that both
  * block between executions, proving that the kernel is really running.
  *
  * Section 41 requires this file to stay focused on the four stages below.
@@ -19,16 +20,13 @@
 #include "task.h"
 
 #include "rtos_objects.h"
+#include "sensors.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
 
-static UART_HandleTypeDef huart1;
-
 static void SystemClock_Config(void);
 static void Periph_GPIO_Init(void);
-static void UART1_Init(void);
-static void Serial_Write(const char *text);
 static void Error_Handler(void);
 
 static void TaskA(void *argument);
@@ -48,10 +46,11 @@ extern "C" void app_main(void)
     SystemCoreClockUpdate();
 
     Periph_GPIO_Init();
-    UART1_Init();
+    serial_init();
+    sensors_init();
 
-    Serial_Write(BANNER_1);
-    Serial_Write(BANNER_2);
+    serial_write(BANNER_1);
+    serial_write(BANNER_2);
 
     /* --- FreeRTOS object creation ----------------------------------- */
     rtos_objects_create();
@@ -59,6 +58,7 @@ extern "C" void app_main(void)
     /* --- task creation ---------------------------------------------- */
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
+    xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();
@@ -95,7 +95,7 @@ static void TaskA(void *argument)
 
     for( ;; )
     {
-        Serial_Write("Task A running\r\n");
+        serial_write("Task A running\r\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -108,7 +108,7 @@ static void TaskB(void *argument)
 
     for( ;; )
     {
-        Serial_Write("Task B running\r\n");
+        serial_write("Task B running\r\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -192,35 +192,8 @@ static void Periph_GPIO_Init(void)
     HAL_GPIO_Init(GPIOA, &gpio);
 }
 
-/** USART1, 115200 8N1 - matches monitor_speed in platformio.ini. */
-static void UART1_Init(void)
-{
-    __HAL_RCC_USART1_CLK_ENABLE();
-
-    huart1.Instance          = USART1;
-    huart1.Init.BaudRate     = 115200;
-    huart1.Init.WordLength   = UART_WORDLENGTH_8B;
-    huart1.Init.StopBits     = UART_STOPBITS_1;
-    huart1.Init.Parity       = UART_PARITY_NONE;
-    huart1.Init.Mode         = UART_MODE_TX_RX;
-    huart1.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
-    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-
-    if( HAL_UART_Init(&huart1) != HAL_OK )
-    {
-        Error_Handler();
-    }
-}
-
-/**
- * Blocking transmit.  Only safe from task context once the scheduler is
- * running; before that it relies on HAL_GetTick(), which SysTick_Handler()
- * keeps advancing.
- */
-static void Serial_Write(const char *text)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)text, (uint16_t)strlen(text), 1000U);
-}
+/** USART1 initialisation moved to serial_init() in rtos_objects.cpp - see
+ *  the note in rtos_objects.h about section 36. */
 
 static void Error_Handler(void)
 {

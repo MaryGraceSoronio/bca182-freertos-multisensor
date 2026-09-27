@@ -9,11 +9,31 @@
       "top": 100,
       "left": 0,
       "attrs": { "builder": "platformio-stm32" }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht22",
+      "top": 60,
+      "left": 340,
+      "attrs": { "temperature": 25.4, "humidity": 61.2 }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_dht",
+      "top": 180,
+      "left": 340,
+      "rotate": 90,
+      "attrs": { "value": "10000" }
     }
   ],
   "connections": [
     [ "stm32:A10", "$serialMonitor:TX", "green", [] ],
-    [ "stm32:A9", "$serialMonitor:RX", "green", [] ]
+    [ "stm32:A9", "$serialMonitor:RX", "green", [] ],
+    [ "dht22:VCC", "stm32:3.3", "red", [] ],
+    [ "dht22:GND", "stm32:GND.1", "black", [] ],
+    [ "dht22:SDA", "stm32:A1", "blue", [] ],
+    [ "r_dht:1", "stm32:3.3", "red", [] ],
+    [ "r_dht:2", "stm32:A1", "blue", [] ]
   ],
   "serialMonitor": { "display": "attached" },
   "dependencies": {}
