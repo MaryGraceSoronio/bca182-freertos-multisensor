@@ -13,6 +13,10 @@
  *   by the user.
  * - Section 26: only DisplayTask renders and flushes.  The driver itself has
  *   no internal locking because the single-owner rule makes one unnecessary.
+ *   InputTask (milestone 8) honours that rule too: it publishes the page it
+ *   selected on modeQueue and never calls into this file.
+ * - Section 27/29: the screen is one page at a time - title, value, and the
+ *   ROOM MONITOR banner above the rule - chosen by DisplayMode.
  * - The glyph data is the Adafruit GFX 'classic' 5x7 font, kept in
  *   include/glcdfont.h; its BSD licence is in assets/LICENSE-glcdfont.txt.
  * - No Arduino or third-party display library is used - section 6 requires
@@ -30,6 +34,7 @@
 #include "task.h"
 
 #include "rtos_objects.h"
+#include "input.h"
 
 #include "glcdfont.h"
 
@@ -45,6 +50,20 @@
 #define GLYPH_HEIGHT       7
 #define I2C_TIMEOUT_MS     100U
 
+/**
+ * How long DisplayTask waits for a new sensor sample before it re-checks the
+ * page queue (milestone 8).
+ *
+ * The wait used to be portMAX_DELAY, which was correct while a sample was the
+ * only thing that could change the screen.  Now a page turn must also reach
+ * the display, so the block is bounded: 50 ms is long enough that DisplayTask
+ * sleeps between events (section 19 - no polling loop) and short enough that
+ * a turn is on the OLED well inside the "within a second" of FT-04/FT-05.
+ * Re-rendering still happens only when something actually changed, so the
+ * extra wake-ups cost one queue check and nothing else.
+ */
+#define DISPLAY_POLL_MS     50U
+
 static I2C_HandleTypeDef hi2c1;
 static uint8_t frame_buffer[OLED_WIDTH * OLED_PAGES];
 static bool display_ready = false;
@@ -58,7 +77,8 @@ static void oled_clear(void);
 static void oled_pixel(int x, int y);
 static void oled_char(int x, int y, char character);
 static void oled_text(int x, int y, const char *text);
-static void render_page(const SensorData *sample, bool have_sample);
+static void render_page(const SensorData *sample, bool have_sample,
+                        DisplayMode mode);
 
 void display_init(void)
 {
@@ -225,19 +245,25 @@ static void oled_text(int x, int y, const char *text)
 }
 
 /**
- * Section 27: the initial screen layout.
+ * Section 27: the screen layout, section 29: which page is drawn.
  *
  *   ROOM MONITOR
- *
+ *   ----------------
  *   Temperature
  *   25.40 C
  *
- * Until the first sample arrives the value line reads "--.- C", so the
- * display never shows a measurement that was not actually taken.
+ * The banner and rule are common to every page; only the title and the value
+ * line follow DisplayMode.  Until the first sample arrives the value line is a
+ * placeholder ("--.- C" and friends), so the display never shows a
+ * measurement that was not actually taken.  Motion has no producer yet -
+ * MotionTask is milestone 10 - so its value line is a placeholder whether or
+ * not a sample has arrived.
  */
-static void render_page(const SensorData *sample, bool have_sample)
+static void render_page(const SensorData *sample, bool have_sample,
+                        DisplayMode mode)
 {
     char line[22];
+    const char *title = "Temperature";
 
     oled_clear();
 
@@ -248,42 +274,106 @@ static void render_page(const SensorData *sample, bool have_sample)
         oled_pixel(x, 11);
     }
 
-    oled_text(0, 20, "Temperature");
-
-    if( have_sample )
+    switch( mode )
     {
-        snprintf(line, sizeof(line), "%.2f C", sample->temperature);
-    }
-    else
-    {
-        snprintf(line, sizeof(line), "--.- C");
+        case DisplayMode::TEMPERATURE:
+            title = "Temperature";
+            if( have_sample )
+            {
+                snprintf(line, sizeof(line), "%.2f C", sample->temperature);
+            }
+            else
+            {
+                snprintf(line, sizeof(line), "--.- C");
+            }
+            break;
+
+        case DisplayMode::HUMIDITY:
+            title = "Humidity";
+            if( have_sample )
+            {
+                snprintf(line, sizeof(line), "%.2f %%", sample->humidity);
+            }
+            else
+            {
+                snprintf(line, sizeof(line), "--.- %%");
+            }
+            break;
+
+        case DisplayMode::LIGHT:
+            title = "Light";
+            if( have_sample )
+            {
+                snprintf(line, sizeof(line), "%d %%", sample->lightLevel);
+            }
+            else
+            {
+                snprintf(line, sizeof(line), "-- %%");
+            }
+            break;
+
+        case DisplayMode::MOTION:
+        default:
+            title = "Motion";
+            /* M10 fills this in; there is no motion source yet. */
+            snprintf(line, sizeof(line), "--");
+            break;
     }
 
+    oled_text(0, 20, title);
     oled_text(0, 36, line);
 
     ssd1306_flush();
 }
 
 /**
- * Section 26 / section 27: the single owner of the OLED.
+ * Sections 26/27/28: the single owner of the OLED.
  *
- * The task blocks on displayQueue, so it consumes no CPU while there is
- * nothing new to show (section 19) and it re-renders the full screen for
- * every sample, which guarantees a coherent frame.
+ * Two sources can change the screen, so the loop handles both and redraws at
+ * most once per pass - a sample and a page turn that arrive together produce
+ * one coherent frame showing the new value on the new page:
+ *
+ *   - displayQueue, bounded wait (see DISPLAY_POLL_MS), carries sensor data;
+ *   - modeQueue, checked with a zero timeout so this call never delays the
+ *     sample path, carries the page InputTask selected.
+ *
+ * With the bounded wait the task still blocks when nothing is happening - it
+ * is not a polling loop - and section 19 is satisfied.
  */
 void DisplayTask(void *argument)
 {
     ( void )argument;
 
     SensorData sample = {};
+    DisplayMode mode = DisplayMode::TEMPERATURE;
+    bool have_sample = false;
 
-    render_page(&sample, false);
+    render_page(&sample, false, mode);
 
     for( ;; )
     {
-        if( xQueueReceive(displayQueue, &sample, portMAX_DELAY) == pdTRUE )
+        bool redraw = false;
+        DisplayMode published = mode;
+
+        if( xQueueReceive(displayQueue, &sample,
+                          pdMS_TO_TICKS(DISPLAY_POLL_MS)) == pdTRUE )
         {
-            render_page(&sample, true);
+            have_sample = true;
+            redraw = true;
+        }
+
+        if( xQueueReceive(modeQueue, &published, 0) == pdTRUE )
+        {
+            if( published != mode )
+            {
+                mode = published;
+                redraw = true;
+            }
+        }
+
+        if( redraw )
+        {
+            render_page(&sample, have_sample, mode);
         }
     }
 }

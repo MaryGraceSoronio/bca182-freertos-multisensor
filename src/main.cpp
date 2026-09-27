@@ -5,9 +5,10 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
- * Milestone 7 (PART VI, sections 26-27): DisplayTask owns the SSD1306 OLED
- * and renders the sample it receives from displayQueue.  Milestone 6 added
- * SensorData and the consumer queues on a fixed vTaskDelayUntil() period.
+ * Milestone 8 (PART VII, section 28): InputTask decodes the KY-040 rotary
+ * encoder and selects the page DisplayTask draws.  Milestone 7 added
+ * DisplayTask and the SSD1306 layout, milestone 6 SensorData and the consumer
+ * queues on a fixed vTaskDelayUntil() period.
  *
  * Section 41 requires this file to stay focused on the four stages below.
  */
@@ -22,6 +23,7 @@
 #include "rtos_objects.h"
 #include "sensors.h"
 #include "display.h"
+#include "input.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
@@ -50,6 +52,7 @@ extern "C" void app_main(void)
     serial_init();
     sensors_init();
     display_init();
+    input_init();
 
     serial_write(BANNER_1);
     serial_write(BANNER_2);
@@ -58,10 +61,22 @@ extern "C" void app_main(void)
     rtos_objects_create();
 
     /* --- task creation ---------------------------------------------- */
+    /* Sections 38-39: every priority is explicit and justified.
+     * InputTask runs at 3, the highest so far, because a human turn of the
+     * knob is a one-shot event - it cannot be re-run by the kernel the way a
+     * periodic sensor sample can, so it must never queue behind the 2 s
+     * sensor cycle.  Its cost is a few microseconds per 2 ms iteration
+     * followed by a blocking delay (section 19), so the higher priority never
+     * starves SensorTask or DisplayTask; the full reasoning is on InputTask
+     * itself.
+     * The stack matches Sensor/Display (256 words): publishing a page runs
+     * snprintf() and the HAL UART transmit, which a 128 word stack cannot
+     * hold - it overflowed on the first turn. */
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
     xTaskCreate(DisplayTask, "Display", 256, nullptr, 1, nullptr);
+    xTaskCreate(InputTask, "Input", 256, nullptr, 3, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();

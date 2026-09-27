@@ -47,14 +47,28 @@ extern QueueHandle_t displayQueue;
 extern QueueHandle_t alarmQueue;
 
 /**
+ * The page InputTask selected (section 28), handed to DisplayTask.
+ *
+ * Same length-one + xQueueOverwrite() pattern as the sensor queues, which
+ * gives "latest page wins": a turn that happens while the display is busy
+ * updating is never lost and never queued up behind an older one.  It is a
+ * queue rather than a direct call or a shared variable so that DisplayTask -
+ * the only task allowed to touch the OLED (section 26) - decides when to
+ * re-render, and InputTask never blocks on the I2C transfer.
+ *
+ * Valid only after rtos_objects_create() has run.
+ */
+extern QueueHandle_t modeQueue;
+
+/**
  * Create every FreeRTOS object the application uses: the sensor queues, the
  * serial-output mutex and the system event group.
  *
  * Must be called after hardware initialisation and before the first
  * xTaskCreate(), so that no task can observe a half-built object.
  *
- * Milestone 6: displayQueue and alarmQueue.  The event group appears in
- * milestone 11 and the mutex in milestone 12.
+ * Milestone 6: displayQueue and alarmQueue.  Milestone 8 adds modeQueue.
+ * The event group appears in milestone 11 and the mutex in milestone 12.
  */
 void rtos_objects_create(void);
 
