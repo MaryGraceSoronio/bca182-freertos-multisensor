@@ -51,10 +51,13 @@ void sensors_init(void);
  * @param humidity_percent   receives the relative humidity in percent
  * @return true when the frame and its checksum are valid, false otherwise
  *
- * The transaction runs with the FreeRTOS scheduler suspended: no other task
- * may preempt the microsecond-scale bit timing, yet the SysTick interrupt
- * keeps running so the HAL time base is not disturbed.  xTaskResumeAll()
- * replays the pended ticks, so the kernel tick count does not slip.
+ * The host start pulse (>= 1 ms low) runs with the scheduler still enabled:
+ * the output register holds the level across any preemption, so nothing
+ * time-critical can be disturbed there.  The sensor's answer and the frame
+ * - the microsecond-scale part - run inside a single suspension window, so
+ * no other task may preempt the bit timing, yet the SysTick interrupt keeps
+ * running so the HAL time base is not disturbed.  xTaskResumeAll() replays
+ * the pended ticks, so the kernel tick count does not slip.
  */
 bool dht22_read(float *temperature_c, float *humidity_percent);
 

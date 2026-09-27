@@ -39,11 +39,18 @@
 #define DHT22_GPIO_PIN    GPIO_PIN_1
 #define DHT22_CYCLES_PER_US  ( SystemCoreClock / 1000000U )
 
-/* Protocol timing (values from the DHT22 datasheet). */
-#define DHT22_START_LOW_US    1200U  /* host start signal, >= 1 ms  */
+/* Protocol timing (values from the DHT22 datasheet).  The datasheet's phase
+ * lengths are shown in the comments; the timeouts are deliberately several
+ * times longer, because a timeout only bounds how long dht_wait_level() may
+ * look for a transition that never arrives - it never delays a transition
+ * that does.  The margin also absorbs the SysTick/PendSV bursts that run
+ * while the scheduler is suspended for the duration of the frame. */
+#define DHT22_START_LOW_US   10000U  /* start signal: datasheet asks for
+                                      * >= 1 ms; 10 ms is used so every
+                                      * read succeeds in simulation     */
 #define DHT22_START_RELEASE_US   30U  /* release before sensor answers */
-#define DHT22_RESPONSE_US      100U  /* slack around the 80 us phases */
-#define DHT22_PREAMBLE_US       70U  /* slack around the 50 us low    */
+#define DHT22_RESPONSE_US      300U  /* around the 80 us phases       */
+#define DHT22_PREAMBLE_US      200U  /* around the 50 us low          */
 #define DHT22_BIT_THRESHOLD_US  40U  /* midpoint between 28 us and 70 us */
 
 /*-----------------------------------------------------------
@@ -53,6 +60,8 @@ static void dwt_init(void);
 static void dht_delay_us(uint32_t microseconds);
 static int  dht_wait_level(GPIO_PinState level, uint32_t timeout_us);
 static void dht22_gpio_init(void);
+static void dht_pin_output(void);
+static void dht_pin_input(void);
 static void ldr_adc_init(void);
 
 static ADC_HandleTypeDef hadc1;
@@ -69,18 +78,40 @@ void sensors_init(void)
  *  diagram provides the strong pull-up the single-wire bus needs. */
 static void dht22_gpio_init(void)
 {
-    GPIO_InitTypeDef gpio = {0};
-
     __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    dht_pin_output();
+
+    /* Release the line (open drain driving '1' = high impedance). */
+    HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_SET);
+}
+
+/** Drive the single-wire bus: only the host's start signal ever needs this
+ *  end of the line actively pulled low. */
+static void dht_pin_output(void)
+{
+    GPIO_InitTypeDef gpio = {0};
 
     gpio.Pin   = DHT22_GPIO_PIN;
     gpio.Mode  = GPIO_MODE_OUTPUT_OD;
     gpio.Pull  = GPIO_PULLUP;
     gpio.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(DHT22_GPIO_PORT, &gpio);
+}
 
-    /* Release the line (open drain driving '1' = high impedance). */
-    HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_SET);
+/** Release the bus so the sensor owns it.  The line is an input for the
+ *  whole answer and frame: a GPIO left configured as an output keeps the bus
+ *  under MCU control, and the sensor then cannot pull it down - which reads
+ *  as a missing response. */
+static void dht_pin_input(void)
+{
+    GPIO_InitTypeDef gpio = {0};
+
+    gpio.Pin   = DHT22_GPIO_PIN;
+    gpio.Mode  = GPIO_MODE_INPUT;
+    gpio.Pull  = GPIO_PULLUP;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(DHT22_GPIO_PORT, &gpio);
 }
 
 /**
@@ -235,13 +266,23 @@ bool dht22_read(float *temperature_c, float *humidity_percent)
     uint8_t data[5] = {0, 0, 0, 0, 0};
     bool frame_ok = false;
 
+    /* Host start signal.  Holding the line low does not depend on
+     * uninterrupted execution - the output register keeps the level while
+     * the task is preempted - so the 10 ms pulse runs with the scheduler
+     * still running and only the answer, which is time-critical, is taken
+     * under the suspension window below. */
+    dht_pin_output();
+    HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_RESET);
+    dht_delay_us(DHT22_START_LOW_US);
+
     /* One transaction = one suspension window.  See sensors.h for why. */
     vTaskSuspendAll();
     {
-        HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_RESET);
-        dht_delay_us(DHT22_START_LOW_US);
-
+        /* Release: ODR = 1 first (otherwise the input pull would be a
+         * pull-down), then let the sensor own the line, then wait out the
+         * datasheet's 20-40 us before it answers. */
         HAL_GPIO_WritePin(DHT22_GPIO_PORT, DHT22_GPIO_PIN, GPIO_PIN_SET);
+        dht_pin_input();
         dht_delay_us(DHT22_START_RELEASE_US);
 
         /* Sensor answers with 80 us low, then 80 us high, then bit 0. */
