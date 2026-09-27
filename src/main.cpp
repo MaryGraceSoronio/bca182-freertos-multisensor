@@ -5,9 +5,10 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
- * Milestone 4 (PART IV, sections 20-21): SensorTask samples the DHT22 and
- * prints its reading.  Milestone 3 added two simple FreeRTOS tasks that both
- * block between executions, proving that the kernel is really running.
+ * Milestone 6 (PART V, sections 22-25): SensorTask samples on a fixed
+ * vTaskDelayUntil() period and publishes each SensorData sample to the
+ * consumer queues.  Milestone 4-5 added the DHT22 and LDR drivers,
+ * milestone 3 two simple FreeRTOS tasks that both block between executions.
  *
  * Section 41 requires this file to stay focused on the four stages below.
  */

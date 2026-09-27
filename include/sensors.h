@@ -21,6 +21,25 @@
 extern "C" {
 #endif
 
+/**
+ * Section 24: the message SensorTask publishes to its consumers.
+ *
+ * motionDetected is part of the required layout from the start.  It stays
+ * false until MotionTask (section 31) starts producing motion events; the
+ * field is filled in by SensorTask so that DisplayTask and AlarmTask always
+ * receive one self-contained sample.
+ */
+typedef struct SensorData
+{
+    float temperature;    /* degrees Celsius                       */
+    float humidity;       /* percent relative humidity             */
+    int   lightLevel;     /* 0-100 % relative light index (section 21) */
+    bool  motionDetected; /* latest PIR state (section 31)         */
+} SensorData;
+
+/** How often SensorTask publishes a sample - section 22, 2000 ms. */
+#define SENSOR_SAMPLE_PERIOD_MS 2000U
+
 /** Configure the sensor GPIOs, the ADC and the DWT cycle counter used for
  *  timing. */
 void sensors_init(void);

@@ -23,9 +23,28 @@
 
 #include <stdint.h>
 
+#include "FreeRTOS.h"
+#include "queue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Section 25: one queue per consumer.
+ *
+ * A single shared queue cannot feed two consumers - a queue hands each item
+ * to exactly one receiver, so DisplayTask and AlarmTask would race for every
+ * sample and each would see only part of the stream.  The specification's
+ * diagram is therefore implemented as two length-one queues that both carry
+ * the same SensorData message, one dedicated to each consumer.  Length one
+ * plus xQueueOverwrite() gives "latest sample wins" semantics: a slow
+ * display never blocks the sensor task and never receives stale data.
+ *
+ * Valid only after rtos_objects_create() has run.
+ */
+extern QueueHandle_t displayQueue;
+extern QueueHandle_t alarmQueue;
 
 /**
  * Create every FreeRTOS object the application uses: the sensor queues, the
@@ -34,8 +53,7 @@ extern "C" {
  * Must be called after hardware initialisation and before the first
  * xTaskCreate(), so that no task can observe a half-built object.
  *
- * Milestone 3: no application objects yet - the two diagnostic tasks only
- * need the kernel itself.  Queues appear in milestone 6, the event group in
+ * Milestone 6: displayQueue and alarmQueue.  The event group appears in
  * milestone 11 and the mutex in milestone 12.
  */
 void rtos_objects_create(void);

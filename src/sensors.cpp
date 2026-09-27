@@ -318,31 +318,39 @@ bool dht22_read(float *temperature_c, float *humidity_percent)
 }
 
 /**
- * Section 20 / section 21 / section 22: sample the DHT22 and the LDR and
- * report the results over the serial monitor before anything else in the
- * system is wired to them.
+ * Section 22 - the periodic producer of the system.
  *
- * Section 19 - the loop performs finite work and then blocks for two
- * seconds, so it never monopolises the CPU.  Milestone 6 replaces the delay
- * with vTaskDelayUntil() and publishes the reading to the sensor queues.
+ * vTaskDelayUntil() rather than vTaskDelay(): the wake-up instants are
+ * derived from one fixed base (last_wake), so every period is exactly
+ * 2000 ms in kernel time and the sampling instants do not drift, even when
+ * an individual read takes longer than usual.  vTaskDelay() would restart
+ * the 2000 ms count from the moment the work finished and the period would
+ * slowly stretch.
+ *
+ * Section 25 - each sample is written to displayQueue and alarmQueue with
+ * xQueueOverwrite(), so the two consumers both see every reading (the
+ * deviation from the single-queue diagram is documented in rtos_objects.h).
+ *
+ * Section 19 - the loop performs finite work and then blocks, so it never
+ * monopolises the CPU.
  */
 void SensorTask(void *argument)
 {
     ( void )argument;
 
-    float   temperature = 0.0F;
-    float   humidity    = 0.0F;
-    uint16_t raw_light  = 0U;
-    char    line[48];
+    TickType_t last_wake_time = xTaskGetTickCount();
+    SensorData sample = {};
+    uint16_t   raw_light = 0U;
+    char       line[48];
 
     for( ;; )
     {
-        if( dht22_read(&temperature, &humidity) )
+        if( dht22_read(&sample.temperature, &sample.humidity) )
         {
-            snprintf(line, sizeof(line), "Temperature: %.2f C\r\n", temperature);
+            snprintf(line, sizeof(line), "Temperature: %.2f C\r\n", sample.temperature);
             serial_write(line);
 
-            snprintf(line, sizeof(line), "Humidity: %.2f %%\r\n", humidity);
+            snprintf(line, sizeof(line), "Humidity: %.2f %%\r\n", sample.humidity);
             serial_write(line);
         }
         else
@@ -352,8 +360,9 @@ void SensorTask(void *argument)
 
         if( ldr_read_raw(&raw_light) )
         {
-            snprintf(line, sizeof(line), "Light level: %u %%\r\n",
-                     ldr_to_light_percent(raw_light));
+            sample.lightLevel = ldr_to_light_percent(raw_light);
+
+            snprintf(line, sizeof(line), "Light level: %d %%\r\n", sample.lightLevel);
             serial_write(line);
         }
         else
@@ -361,6 +370,12 @@ void SensorTask(void *argument)
             serial_write("LDR read failed\r\n");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        /* Section 31 - MotionTask has not been created yet. */
+        sample.motionDetected = false;
+
+        ( void )xQueueOverwrite(displayQueue, &sample);
+        ( void )xQueueOverwrite(alarmQueue, &sample);
+
+        vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(SENSOR_SAMPLE_PERIOD_MS));
     }
 }
