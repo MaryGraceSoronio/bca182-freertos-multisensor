@@ -1,0 +1,17 @@
+# PlatformIO build artifacts (OneDrive sync churn / not source)
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Editor / IDE state (keep shared recommendations)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Wokwi local state
+.wokwi/
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
