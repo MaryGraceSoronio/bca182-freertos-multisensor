@@ -1,6 +1,6 @@
 # Simulated STM32 & FreeRTOS Room Monitoring System in Wokwi
 
-Real-Time Multisensor Room Monitoring System - BCA182 Laboratory Activity 1.
+Real-Time Multisensor Room Monitoring System.
 An STM32 Blue Pill firmware that samples temperature, humidity, light and
 motion on FreeRTOS, shows them on an SSD1306 OLED, sounds a temperature
 alarm, and parks the display after 15 seconds of inactivity.
