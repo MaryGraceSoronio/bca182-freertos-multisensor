@@ -1,4 +1,4 @@
-# BCA182 FreeRTOS Multisensor
+# Simulated STM32 & FreeRTOS Room Monitoring System in Wokwi
 
 Real-Time Multisensor Room Monitoring System - BCA182 Laboratory Activity 1.
 An STM32 Blue Pill firmware that samples temperature, humidity, light and
