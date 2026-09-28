@@ -18,13 +18,23 @@
  * priority 3.  Between reads it sleeps, so it holds no CPU while the room is
  * quiet.
  *
- * Edge-triggered reporting
- * ------------------------
+ * Edge-triggered reporting, level-triggered event bit
+ * ---------------------------------------------------
  * The serial line reports only the 0 -> 1 transition ("Motion: detected"),
  * so one detection produces exactly one line instead of one per poll; a
  * steady state - idle or continuously re-triggered - prints nothing and the
  * log stays readable.  The level itself is published through
  * motion_detected(), which SensorTask copies into every sample.
+ *
+ * EVENT_MOTION (section 35) is deliberately the opposite polarity: it is set
+ * on *every* poll while OUT is high, not only on the edge.  The simulated
+ * PIR re-triggers, so OUT stays high for as long as motion continues and
+ * never produces a second edge - an edge-only bit would be consumed by
+ * StateTask's first wait and then stay clear forever, letting the machine
+ * time out to INACTIVE (section 32, FR-09) with the sensor still reporting
+ * motion.  Re-setting the level every 10 ms means StateTask always sees the
+ * truth; its clear-on-exit wait is what turns the level back into one
+ * consumed event per evaluation.
  *
  * Priority 3 (sections 38-39): a person entering the room is a one-shot
  * event - if this task queued behind the 2 s sensor cycle a detection could
@@ -43,8 +53,9 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "event_groups.h"
 
-#include "rtos_objects.h"   /* serial_write() */
+#include "rtos_objects.h"   /* serial_write(), systemEvents/EVENT_MOTION */
 
 /*-----------------------------------------------------------
  * Pin assignment and tuning constants
@@ -139,6 +150,10 @@ void MotionTask( void *argument )
 
         if( level )
         {
+            /* Section 35: level, not edge - see the file header for why the
+             * re-triggering PIR cannot be reported as a one-shot bit. */
+            ( void )xEventGroupSetBits(systemEvents, EVENT_MOTION);
+
             if( !previous )
             {
                 serial_write("Motion: detected\r\n");

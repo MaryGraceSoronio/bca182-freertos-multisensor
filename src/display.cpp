@@ -32,6 +32,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "event_groups.h"
 
 #include "rtos_objects.h"
 #include "input.h"
@@ -78,7 +79,7 @@ static void oled_pixel(int x, int y);
 static void oled_char(int x, int y, char character);
 static void oled_text(int x, int y, const char *text);
 static void render_page(const SensorData *sample, bool have_sample,
-                        DisplayMode mode);
+                        DisplayMode mode, bool alarmed);
 
 void display_init(void)
 {
@@ -259,9 +260,16 @@ static void oled_text(int x, int y, const char *text)
  * SensorData.motionDetected, which SensorTask fills from MotionTask's PIR
  * poll (milestone 10), so it shows "Detected" only while the sensor's OUT
  * pin is actually high.
+ *
+ * alarmed (section 35's EVENT_ALARM, sampled by DisplayTask) appends a marker
+ * to the temperature value so the OLED shows why the buzzer is ringing: the
+ * page switches between "%.2f C" and "%.2f C ALARM" as AlarmTask enters and
+ * leaves the out-of-range state.  The marker is on the temperature page only
+ * because that is the page whose value the decision was made on; the other
+ * pages keep their own units untouched.
  */
 static void render_page(const SensorData *sample, bool have_sample,
-                        DisplayMode mode)
+                        DisplayMode mode, bool alarmed)
 {
     char line[22];
     const char *title = "Temperature";
@@ -281,7 +289,9 @@ static void render_page(const SensorData *sample, bool have_sample,
             title = "Temperature";
             if( have_sample )
             {
-                snprintf(line, sizeof(line), "%.2f C", sample->temperature);
+                snprintf(line, sizeof(line),
+                         alarmed ? "%.2f C ALARM" : "%.2f C",
+                         sample->temperature);
             }
             else
             {
@@ -337,13 +347,25 @@ static void render_page(const SensorData *sample, bool have_sample,
 /**
  * Sections 26/27/28: the single owner of the OLED.
  *
- * Two sources can change the screen, so the loop handles both and redraws at
- * most once per pass - a sample and a page turn that arrive together produce
- * one coherent frame showing the new value on the new page:
+ * Three sources can change the screen, so the loop handles all three and
+ * redraws at most once per pass - a sample and a page turn and an alarm edge
+ * that arrive together produce one coherent frame:
  *
  *   - displayQueue, bounded wait (see DISPLAY_POLL_MS), carries sensor data;
  *   - modeQueue, checked with a zero timeout so this call never delays the
- *     sample path, carries the page InputTask selected.
+ *     sample path, carries the page InputTask selected;
+ *   - EVENT_ALARM (section 35), sampled once per pass, marks the temperature
+ *     page while it is set, so the marker appears and disappears with
+ *     AlarmTask's own transitions even when no new sample has arrived.
+ *
+ * The INACTIVE reduction (section 34) sits alongside those three sources:
+ * while EVENT_ACTIVE is clear the OLED is blanked exactly once and
+ * no further frame is drawn, so an empty room costs one I2C clear instead of
+ * a redraw every 2 s.  The two queue receives stay unconditional so the
+ * length-one queues keep draining and the latest sample and page are waiting
+ * in the local variables; the moment EVENT_ACTIVE returns the current frame
+ * is re-rendered with both (a reactivated system must come back showing what
+ * it was showing, not a cleared screen).
  *
  * With the bounded wait the task still blocks when nothing is happening - it
  * is not a polling loop - and section 19 is satisfied.
@@ -355,13 +377,19 @@ void DisplayTask(void *argument)
     SensorData sample = {};
     DisplayMode mode = DisplayMode::TEMPERATURE;
     bool have_sample = false;
+    bool active = ( ( xEventGroupGetBits(systemEvents) & EVENT_ACTIVE ) != 0U );
+    bool alarmed = ( ( xEventGroupGetBits(systemEvents) & EVENT_ALARM ) != 0U );
 
-    render_page(&sample, false, mode);
+    if( active )
+    {
+        render_page(&sample, false, mode, alarmed);
+    }
 
     for( ;; )
     {
         bool redraw = false;
         DisplayMode published = mode;
+        bool now_active, now_alarmed;
 
         if( xQueueReceive(displayQueue, &sample,
                           pdMS_TO_TICKS(DISPLAY_POLL_MS)) == pdTRUE )
@@ -379,9 +407,38 @@ void DisplayTask(void *argument)
             }
         }
 
-        if( redraw )
+        now_alarmed = ( ( xEventGroupGetBits(systemEvents) & EVENT_ALARM ) != 0U );
+        if( now_alarmed != alarmed )
         {
-            render_page(&sample, have_sample, mode);
+            alarmed = now_alarmed;
+            redraw = true;
+        }
+
+        now_active = ( ( xEventGroupGetBits(systemEvents) & EVENT_ACTIVE ) != 0U );
+        if( now_active != active )
+        {
+            active = now_active;
+
+            if( active )
+            {
+                /* Reactivation: restore the frame that was pending when the
+                 * system went quiet (section 34). */
+                redraw = true;
+            }
+            else
+            {
+                /* Transition to INACTIVE: one blank, then nothing (section
+                 * 34).  Any redraw the queues queued above is dropped - the
+                 * next ACTIVE transition forces a fresh one instead. */
+                oled_clear();
+                ssd1306_flush();
+                redraw = false;
+            }
+        }
+
+        if( active && redraw )
+        {
+            render_page(&sample, have_sample, mode, alarmed);
         }
     }
 }

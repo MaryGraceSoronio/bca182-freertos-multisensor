@@ -40,8 +40,9 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "event_groups.h"
 
-#include "rtos_objects.h"   /* alarmQueue, serial_write() */
+#include "rtos_objects.h"   /* alarmQueue, serial_write(), systemEvents */
 #include "sensors.h"        /* SensorData - the queue item type */
 
 /*-----------------------------------------------------------
@@ -169,6 +170,12 @@ static const char *alarm_line( AlarmState state )
  * blocked receive, three comparisons and one GPIO write per 2 s sample, so
  * nothing can starve; had it been left at priority 1 instead, a congested
  * display update would have delayed the alarm by up to a whole redraw.
+ *
+ * Section 35: AlarmTask is the producer of EVENT_ALARM.  The bit is set
+ * whenever the evaluation leaves NORMAL and cleared whenever it returns to
+ * NORMAL - the same transitions that drive the buzzer, so the buzzer line,
+ * the "Alarm: ..." serial line and the bit always agree.  DisplayTask is
+ * the consumer and marks the temperature page while the bit is set.
  */
 void AlarmTask( void *argument )
 {
@@ -191,6 +198,15 @@ void AlarmTask( void *argument )
 
         state      = next;
         have_state = true;
+
+        if( next == AlarmState::NORMAL )
+        {
+            ( void )xEventGroupClearBits(systemEvents, EVENT_ALARM);
+        }
+        else
+        {
+            ( void )xEventGroupSetBits(systemEvents, EVENT_ALARM);
+        }
 
         buzzer_write(next != AlarmState::NORMAL);
         serial_write(alarm_line(next));

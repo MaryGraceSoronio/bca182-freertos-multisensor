@@ -61,8 +61,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include "event_groups.h"
 
-#include "rtos_objects.h"   /* modeQueue, serial_write() */
+#include "rtos_objects.h"   /* modeQueue, serial_write(), systemEvents */
 
 /*-----------------------------------------------------------
  * Pin assignment and tuning constants
@@ -270,8 +271,17 @@ void InputTask( void *argument )
          * advance twice.  The falling edge is the only edge that carries the
          * direction (rising edges repeat the same state), and a sample where
          * both lines moved is ambiguous - dropped rather than guessed, so a
-         * fast spin cannot invent an extra page. */
-        if( clk_fell && ( !dt_moved ) )
+         * fast spin cannot invent an extra page.
+         *
+         * Section 33: while EVENT_ACTIVE is clear (section 34's INACTIVE)
+         * the detent is consumed but ignored - the page cannot change and
+         * nothing is published, so no phantom turn is waiting for someone
+         * when the system comes back.  The filters and edge detection above
+         * keep running throughout: dropping them would freeze the two
+         * stability levels mid-transition and let one stale CLK low level
+         * look like the first detent after reactivation. */
+        if( clk_fell && ( !dt_moved ) &&
+            ( ( xEventGroupGetBits(systemEvents) & EVENT_ACTIVE ) != 0U ) )
         {
             mode = stable_dt ? nextDisplayMode(mode)
                              : previousDisplayMode(mode);

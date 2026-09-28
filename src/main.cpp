@@ -5,9 +5,13 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
- * Milestone 10 (PART IX, section 31): MotionTask polls the PIR on PB8 and
- * reports rising edges; SensorTask publishes the level on every sample and
- * the OLED's Motion page shows it.
+ * Milestone 10 (PART IX-X, sections 31-35): MotionTask polls the PIR on PB8
+ * and reports rising edges; SensorTask publishes the level on every sample
+ * and the OLED's Motion page shows it.  StateTask runs the ACTIVE/INACTIVE
+ * machine (section 32) and the system event group (section 35) carries its
+ * inputs and results: EVENT_MOTION feeds the machine, EVENT_ACTIVE tells the
+ * display and the encoder which state they are in, EVENT_ALARM marks the
+ * temperature page while the alarm is ringing.
  * Milestone 9 (PART VIII, section 30): AlarmTask consumes alarmQueue and
  * drives the buzzer through the pure evaluateTemperature() decision.
  * Milestone 8 (PART VII, section 28): InputTask decodes the KY-040 rotary
@@ -31,6 +35,7 @@
 #include "input.h"
 #include "alarm.h"
 #include "motion.h"
+#include "system_state.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
@@ -71,7 +76,14 @@ extern "C" void app_main(void)
 
     /* --- task creation ---------------------------------------------- */
     /* Sections 38-39: every priority is explicit and justified.
-     * MotionTask runs at 3, the joint highest so far, because a PIR edge is
+     * StateTask, MotionTask and InputTask share the top level 3.  StateTask
+     * is created last, so it runs first at start-up: it claims EVENT_ACTIVE
+     * before any consumer can read the group, and from then on it only wakes
+     * for motion evidence or the 15 s timeout - a state change queued behind
+     * the 2 s sensor cycle would delay the section 34 blank/restore for no
+     * gain, and its cost at that level is one blocked event-group wait and a
+     * few comparisons; the full reasoning is on StateTask itself.
+     * MotionTask runs at 3 because a PIR edge is
      * a one-shot event: if it queued behind SensorTask's 2 s cycle a person
      * entering the room could go unnoticed for two seconds.  Its cost at
      * that level is one GPIO read, one comparison and one 10 ms blocking
@@ -95,7 +107,9 @@ extern "C" void app_main(void)
      * headroom for its HAL UART transmit even though its lines are literals.
      * MotionTask gets 128 words like TaskA/TaskB: its deepest path is one
      * GPIO read plus the same literal-only UART transmit, with no formatting
-     * and no kernel call deeper than vTaskDelay(). */
+     * and no kernel call deeper than vTaskDelay().  StateTask sits between
+     * them at 192: literal-only output like MotionTask, but an event-group
+     * wait and set/clear path that wants more headroom than a bare delay. */
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
@@ -103,6 +117,7 @@ extern "C" void app_main(void)
     xTaskCreate(InputTask, "Input", 256, nullptr, 3, nullptr);
     xTaskCreate(AlarmTask, "Alarm", 256, nullptr, 2, nullptr);
     xTaskCreate(MotionTask, "Motion", 128, nullptr, 3, nullptr);
+    xTaskCreate(StateTask, "State", 192, nullptr, 3, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();
