@@ -48,20 +48,26 @@ QueueHandle_t displayQueue = nullptr;
 QueueHandle_t alarmQueue   = nullptr;
 QueueHandle_t modeQueue    = nullptr;
 
+EventGroupHandle_t systemEvents = nullptr;
+
 void rtos_objects_create( void )
 {
     /* Length one: combined with xQueueOverwrite() the consumers always read
      * the most recent sample and the producer never blocks.  modeQueue carries
      * the page rather than a SensorData (milestone 8).  The event group
-     * (milestone 11) and the serial mutex (milestone 12) are added here as
-     * the subsystems they serve appear. */
+     * (milestone 10, section 35) starts with every bit clear - no state has
+     * been decided yet - and StateTask claims EVENT_ACTIVE as its first act.
+     * The serial mutex is added in a later milestone, with the subsystem it
+     * serves. */
     displayQueue = xQueueCreate(1, sizeof(SensorData));
     alarmQueue   = xQueueCreate(1, sizeof(SensorData));
     modeQueue    = xQueueCreate(1, sizeof(DisplayMode));
+    systemEvents = xEventGroupCreate();
 
     configASSERT(displayQueue != nullptr);
     configASSERT(alarmQueue != nullptr);
     configASSERT(modeQueue != nullptr);
+    configASSERT(systemEvents != nullptr);
 }
 
 /** USART1, 115200 8N1 - matches monitor_speed in platformio.ini. */

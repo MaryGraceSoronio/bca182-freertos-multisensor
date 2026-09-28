@@ -28,12 +28,16 @@
  * src/alarm.cpp is compiled whole so that the decision logic under test is
  * the exact code the firmware runs, which also drags in the task half of the
  * file.  AlarmTask() itself is never called here - it would block on a
- * queue no producer feeds - so these two definitions exist only to satisfy
- * the linker, and serial_write() deliberately discards its output.
+ * queue no producer feeds - so these definitions exist only to satisfy the
+ * linker, and serial_write() deliberately discards its output.  systemEvents
+ * (section 35) is the group AlarmTask() writes its EVENT_ALARM bit into; it
+ * stays null and the stubbed xEventGroupSet/ClearBits discard the write.
  */
 extern "C" {
 
 QueueHandle_t alarmQueue = nullptr;
+
+EventGroupHandle_t systemEvents = nullptr;
 
 void serial_write( const char *text )
 {

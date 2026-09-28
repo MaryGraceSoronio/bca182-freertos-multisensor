@@ -25,6 +25,7 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "event_groups.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,15 +61,63 @@ extern QueueHandle_t alarmQueue;
  */
 extern QueueHandle_t modeQueue;
 
+/*---------------------------------------------------------------
+ * Section 35 - event signalling: the system event group
+ *
+ * The section 35 example names three bits.  Neither FreeRTOS nor the CMSIS
+ * headers define BIT0/BIT1/BIT2 (they are bare-metal convenience macros),
+ * so they are provided here, guarded in case a future header adds them.
+ *-------------------------------------------------------------*/
+#ifndef BIT0
+#define BIT0 ( 1UL << 0 )
+#endif
+#ifndef BIT1
+#define BIT1 ( 1UL << 1 )
+#endif
+#ifndef BIT2
+#define BIT2 ( 1UL << 2 )
+#endif
+
+#define EVENT_ACTIVE BIT0
+#define EVENT_MOTION BIT1
+#define EVENT_ALARM  BIT2
+
+/**
+ * The section 35 documentation table: each bit, its producer, its consumers
+ * and exactly when it is set or cleared.
+ *
+ *  Bit  | Name         | Producer   | Consumer(s)             | Set / cleared
+ *  -----+--------------+------------+-------------------------+---------------------------------------------
+ *  BIT0 | EVENT_ACTIVE | StateTask  | DisplayTask, InputTask  | Set on the transition into ACTIVE (including
+ *       |              |            |                         | the boot state), cleared on the transition
+ *       |              |            |                         | into INACTIVE; it always mirrors the current
+ *       |              |            |                         | state machine state, so "clear" = INACTIVE.
+ *  BIT1 | EVENT_MOTION | MotionTask | StateTask               | Set on every poll while PIR OUT reads high
+ *       |              |            |                         | (level, not edge - see motion.cpp); StateTask
+ *       |              |            |                         | clears it when it consumes it (wait with
+ *       |              |            |                         | clear-on-exit).
+ *  BIT2 | EVENT_ALARM  | AlarmTask  | DisplayTask             | Set when evaluateTemperature() first reports
+ *       |              |            |                         | (or continues) a non-NORMAL state, cleared
+ *       |              |            |                         | when it reports NORMAL again.
+ *
+ * Read-side convention: consumers use xEventGroupGetBits() (a read that never
+ * blocks and never clears), so only StateTask consumes EVENT_MOTION with
+ * clear-on-exit; the two state bits are written by their producers alone.
+ *
+ * Valid only after rtos_objects_create() has run.
+ */
+extern EventGroupHandle_t systemEvents;
+
 /**
  * Create every FreeRTOS object the application uses: the sensor queues, the
- * serial-output mutex and the system event group.
+ * system event group (section 35) and - in a later milestone - the
+ * serial-output mutex.
  *
  * Must be called after hardware initialisation and before the first
  * xTaskCreate(), so that no task can observe a half-built object.
  *
  * Milestone 6: displayQueue and alarmQueue.  Milestone 8 adds modeQueue.
- * The event group appears in milestone 11 and the mutex in milestone 12.
+ * Milestone 10 adds systemEvents.
  */
 void rtos_objects_create(void);
 
