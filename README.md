@@ -8,8 +8,9 @@ alarm, and parks the display after 15 seconds of inactivity.
 * **Target:** STM32 Blue Pill (STM32F103C8T6), simulated in Wokwi
 * **Framework:** STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
 * **Toolchain:** PlatformIO + Git, host unit tests on `native`
-* **Status:** milestones M0-M14 complete; firmware, tests, static analysis,
-  functional verification and three fault experiments are all green
+* **Status:** milestones M0-M16 complete; firmware, tests, static analysis,
+  functional verification, three fault experiments and the academic report
+  are all green
 
 ## Project Overview
 
@@ -308,6 +309,9 @@ simulator.
 │   ├── test_state/            8 Unity tests for evaluateSystemState()
 │   └── stubs/                 HAL/FreeRTOS headers the host build resolves
 ├── docs/
+│   ├── laboratory-report.pdf   academic report (sections 57-60) - task table,
+│   │                           traceability matrix and engineering analysis
+│   ├── laboratory-report.md    editable source of that report
 │   ├── static-analysis.md     every cppcheck finding, cause and disposition
 │   ├── functional-verification.md   FT-01..FT-10 record with line evidence
 │   ├── fault-experiments.md   remove blocking / change priority / drop mutex
