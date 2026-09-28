@@ -37,6 +37,8 @@ extern "C" {
 
 QueueHandle_t alarmQueue = nullptr;
 
+QueueHandle_t modeQueue = nullptr;
+
 EventGroupHandle_t systemEvents = nullptr;
 
 void serial_write( const char *text )

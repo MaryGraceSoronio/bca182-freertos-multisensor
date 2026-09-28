@@ -1,10 +1,11 @@
 /**
  * queue.h - host stub for the unit tests (sections 42-44)
  *
- * Declares the one queue API AlarmTask() calls.  xQueueReceive() cannot
- * block on a host build - there is no scheduler - so it simply reports
- * "nothing received"; AlarmTask() is never called by the tests, the stub
- * exists only so the translation unit links.
+ * Declares the queue APIs the application sources call: xQueueReceive() from
+ * AlarmTask() and xQueueOverwrite() from InputTask().  Neither can block on a
+ * host build - there is no scheduler - so the first reports "nothing received"
+ * and the second reports "accepted"; neither task is ever called by the tests,
+ * the stubs exist only so the translation units link.
  */
 
 #ifndef QUEUE_H
@@ -21,6 +22,16 @@ static inline BaseType_t xQueueReceive( QueueHandle_t queue, void *buffer,
     ( void )buffer;
     ( void )ticks;
     return pdFALSE;
+}
+
+/** Length-one "latest wins" write used for modeQueue (section 28).  The host
+ *  has no queue to write to; the call is reported as accepted. */
+static inline BaseType_t xQueueOverwrite( QueueHandle_t queue,
+                                          const void *buffer )
+{
+    ( void )queue;
+    ( void )buffer;
+    return pdTRUE;
 }
 
 #endif /* QUEUE_H */

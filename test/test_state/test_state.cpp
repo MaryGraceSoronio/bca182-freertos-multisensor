@@ -26,7 +26,8 @@
  * disagree about the window, FR-09 would silently break.
  *
  * Like test_alarm, [env:native] in platformio.ini compiles src/alarm.cpp
- * into this suite too, so the same three link-time stand-ins are provided.
+ * and src/input.cpp into this suite too, so the same four link-time
+ * stand-ins are provided.
  *
  * Run with:  pio test -e native
  */
@@ -39,6 +40,8 @@
 extern "C" {
 
 QueueHandle_t alarmQueue = nullptr;
+
+QueueHandle_t modeQueue = nullptr;
 
 EventGroupHandle_t systemEvents = nullptr;
 
