@@ -1,0 +1,145 @@
+name: 'ft-encoder-pir'
+version: 1
+steps:
+  - delay: 2000ms
+  - set-control:
+      part-id: btn_pir
+      control: pressed
+      value: 1
+  - delay: 1200ms
+  - set-control:
+      part-id: btn_pir
+      control: pressed
+      value: 0
+  - delay: 800ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 800ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - set-control:
+      part-id: btn_ccw
+      control: pressed
+      value: 0
+  - delay: 400ms
+  - delay: 8000ms
+  - set-control:
+      part-id: btn_pir
+      control: pressed
+      value: 1
+  - delay: 6000ms
+  - set-control:
+      part-id: btn_pir
+      control: pressed
+      value: 0
+  - delay: 3000ms

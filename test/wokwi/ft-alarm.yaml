@@ -1,0 +1,23 @@
+name: 'ft-alarm-buzzer'
+version: 1
+steps:
+  - delay: 5500ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 31.0
+  - delay: 6000ms
+  - expect-pin:
+      part-id: buzzer
+      pin: 2
+      value: 1
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 25.4
+  - delay: 6000ms
+  - expect-pin:
+      part-id: buzzer
+      pin: 2
+      value: 0
+  - delay: 4000ms

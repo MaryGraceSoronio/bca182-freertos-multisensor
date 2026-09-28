@@ -1,0 +1,35 @@
+name: 'ft-sensors-alarm'
+version: 1
+steps:
+  - delay: 5500ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 28.0
+  - set-control:
+      part-id: dht22
+      control: humidity
+      value: 45.0
+  - set-control:
+      part-id: ldr
+      control: lux
+      value: 50
+  - delay: 6000ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 31.0
+  - delay: 6000ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 25.4
+  - set-control:
+      part-id: dht22
+      control: humidity
+      value: 61.2
+  - set-control:
+      part-id: ldr
+      control: lux
+      value: 500
+  - delay: 14000ms

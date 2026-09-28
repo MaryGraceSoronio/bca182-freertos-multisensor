@@ -1,0 +1,40 @@
+name: 'ft-display-humidity'
+version: 1
+steps:
+  - delay: 5500ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 28.0
+  - set-control:
+      part-id: dht22
+      control: humidity
+      value: 45.0
+  - set-control:
+      part-id: ldr
+      control: lux
+      value: 50
+  - delay: 500ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 1
+  - delay: 400ms
+  - set-control:
+      part-id: btn_cw
+      control: pressed
+      value: 0
+  - delay: 5000ms
+  - set-control:
+      part-id: dht22
+      control: temperature
+      value: 25.4
+  - set-control:
+      part-id: dht22
+      control: humidity
+      value: 61.2
+  - set-control:
+      part-id: ldr
+      control: lux
+      value: 500
+  - delay: 3000ms

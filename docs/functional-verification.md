@@ -16,8 +16,10 @@ Flash: [=====     ]  48.2% (used 31588 bytes from 65536 bytes)
 ## 1. How the runs were produced
 
 Every row of section 48 was measured on an unmodified build. The stimulus
-files and the harness diagram live **outside the repository**; `diagram.json`
-in the working tree was never edited (`git status` shows only `.gitignore`).
+files and the harness diagram are committed at `test/wokwi/`, with the
+reproduction commands, per-scenario timeouts and the scenario-to-FT mapping in
+`test/wokwi/README.md`. `diagram.json` in the working tree was never edited
+(`git status` shows no change to it).
 
 | Run | Diagram | Scenario | Serial log | Lines |
 | --- | --- | --- | --- | --- |
@@ -45,8 +47,9 @@ performed *after* the run, on the complete log file.
 | `wokwi-ky-040` | `rotate`, `rotation`, `step`, `clockwise`, `angle` | **not supported** — silently ignored |
 | `wokwi-pir-motion-sensor` | `motion`, `simulate-motion`, `trigger` | **not supported** — silently ignored |
 
-The encoder and the PIR therefore had to be driven electrically. A temporary
-`diagram-harness.json` was written as the canonical diagram plus:
+The encoder and the PIR therefore had to be driven electrically. The harness
+diagram, committed as `test/wokwi/diagram-harness.json`, is the canonical
+diagram plus:
 
 * `btn_cw` — pushbutton, `1.l → stm32:B12`, `2.l → GND`
 * `btn_ccw` — pushbutton, `1.l → stm32:B13`, `2.l → GND`
@@ -219,10 +222,15 @@ clear and produces the `INACTIVE → ACTIVE` transition.
 $ pio run                                    # 48.2% flash / 55.4% RAM
 $ wokwi-cli . --timeout 60000 --timeout-exit-code 0 \
       --serial-log-file <run>.log            # baseline: 216 lines
-$ wokwi-cli . --scenario <scenario>.yaml --diagram-file <diagram>.json \
+$ wokwi-cli . --scenario test/wokwi/<scenario>.yaml \
+      --diagram-file test/wokwi/diagram-harness.json \
       --serial-log-file <run>.log --vcd-file <run>.vcd \
       --screenshot-file shot.png --screenshot-part oled --screenshot-time 9000
 ```
+
+Per-scenario `--timeout` values and the full command lines are in
+`test/wokwi/README.md`; the token comes from your own Wokwi account and is
+supplied through `$env:WOKWI_CLI_TOKEN`, never from a file.
 
 Expected counts for the 60 s reference run:
 
