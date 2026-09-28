@@ -128,7 +128,7 @@ The decision itself lives in a pure function, `evaluateSystemState()` in `includ
 | `pio check` | 0 high / 0 medium / 35 low |
 | `wokwi-cli lint` | no issues |
 | 60 s headless run | 216 serial lines; 30/30/30 sensor samples, 60/60 diagnostics with no consecutive identical pair, banner once, ACTIVE → INACTIVE after ~15 s, 0 errors, longest line 27 characters |
-| `git status --short` | only the intended new documentation files |
+| `git status --short` | clean — only the untracked `.vscode/` editor directory remains |
 
 ## Demonstration
 

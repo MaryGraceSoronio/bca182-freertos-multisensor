@@ -5,8 +5,9 @@ evidence (or the exact action still outstanding) for that row. Followed by a
 self-audit against the section 66 grounds for rejection and a cross-check of
 the deliverables against sections 55, 56, 57, 59 and 38/39.
 
-**Basis.** Repository state at commit `7bd389d` + the two commits adding this
-document and `docs/hackster-article.md`. Verification re-run for this audit:
+**Basis.** Repository state after the two milestone commits `dff9c82`
+(`docs/hackster-article.md` + the README cross-link) and this document's
+commit. Verification re-run for this audit:
 
 | Command | Result |
 | --- | --- |
@@ -15,7 +16,7 @@ document and `docs/hackster-article.md`. Verification re-run for this audit:
 | `pio check` | 0 high / 0 medium / 35 low |
 | `wokwi-cli lint` | no issues |
 | `wokwi-cli . --timeout 60000` | exit 0, 216 serial lines, all M13 criteria intact |
-| `git status --short` | only `.vscode/` (untracked) plus the files added by these two commits |
+| `git status --short` | `?? .vscode/` only — untracked by design, never staged |
 
 ---
 
