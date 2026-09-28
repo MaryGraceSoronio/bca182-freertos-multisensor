@@ -11,6 +11,12 @@
 # Wokwi local state
 .wokwi/
 
+# Wokwi CLI artifacts (headless verification runs, not source)
+wokwi.vcd
+*.vcd
+screenshot*.png
+*.serial.log
+
 # OS noise
 Thumbs.db
 Desktop.ini
