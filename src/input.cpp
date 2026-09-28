@@ -167,8 +167,13 @@ static const char *page_name( DisplayMode mode )
  * Publish the new page: the display is told first (it is the consumer of the
  * page, section 26), then the turn is reported on the serial console so it
  * can be checked from the log.
+ *
+ * `mode` is const: publish_page() reads the page and hands it to the queue,
+ * it never rewrites it.  Declaring that here is what cppcheck's
+ * constParameterPointer asks for (section 45), and it documents the contract
+ * for the caller as well.
  */
-static void publish_page( DisplayMode *mode )
+static void publish_page( const DisplayMode *mode )
 {
     char line[24];
 

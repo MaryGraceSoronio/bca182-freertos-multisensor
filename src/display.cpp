@@ -220,11 +220,15 @@ static void oled_pixel(int x, int y)
 /** Draw one 5x7 glyph with its top-left corner at (x, y). */
 static void oled_char(int x, int y, char character)
 {
-    uint8_t index = ( uint8_t )character;
+    /* Named glyph_index, not index: `index` is a POSIX function declared by
+     * <strings.h>, and a local by that name hides it (cppcheck shadowFunction,
+     * section 45). */
+    uint8_t glyph_index = ( uint8_t )character;
 
     for( uint8_t column = 0; column < GLYPH_WIDTH; ++column )
     {
-        uint8_t bits = font[( ( uint16_t )index * GLYPH_WIDTH ) + column];
+        uint8_t bits =
+            font[( ( uint16_t )glyph_index * GLYPH_WIDTH ) + column];
 
         for( uint8_t row = 0; row < GLYPH_HEIGHT; ++row )
         {
