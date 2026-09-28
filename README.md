@@ -576,3 +576,6 @@ restoration afterwards.
   [`assets/LICENSE-glcdfont.txt`](assets/LICENSE-glcdfont.txt).
 * **cppcheck** - static analyser, findings triaged in
   [`docs/static-analysis.md`](docs/static-analysis.md).
+* **Hackster.io portfolio post** - the public showcase article lives in
+  [`docs/hackster-article.md`](docs/hackster-article.md); it is written and
+  ready, but pending publication (see its checklist).
