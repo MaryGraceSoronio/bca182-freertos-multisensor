@@ -25,7 +25,7 @@
  *
  * The part is a passive piezo: a static level charges it once and bends it
  * once, while an *audible* tone needs an alternating waveform (timer PWM or
- * a bit-banged square wave).  This milestone asserts the drive line - which
+ * a bit-banged square wave).  AlarmTask asserts the drive line - which
  * is what "activate" means at the GPIO level - and reports the state on the
  * serial console; generating sound is deliberately out of scope here so that
  * AlarmTask stays a blocking, bounded-work task (section 19).

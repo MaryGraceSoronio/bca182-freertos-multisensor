@@ -10,7 +10,8 @@
  * Pin map (see README "Pin Configuration"):
  *   PB12 - encoder CLK  (rotary pin A, EXTI-free plain GPIO)
  *   PB13 - encoder DT   (rotary pin B)
- *   PB14 - encoder SW   (push button, wired but unused in this milestone)
+ *   PB14 - encoder SW   (push button, wired and pulled up; no action is
+ *                       mapped to it - sections 28-29 use rotation only)
  */
 
 #ifndef INPUT_H

@@ -5,6 +5,12 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
+ * Milestone 12 (PART XII-XIII, sections 38-41): the priority table below is
+ * the section 38/39 justification for every task in the system, and the
+ * section 40 source audit plus the section 41 four-stage check are recorded
+ * on app_main().
+ * Milestone 11 (section 36): every serial line is written under serialMutex,
+ * so two callers can no longer drop or interleave each other's output.
  * Milestone 10 (PART IX-X, sections 31-35): MotionTask polls the PIR on PB8
  * and reports rising edges; SensorTask publishes the level on every sample
  * and the OLED's Motion page shows it.  StateTask runs the ACTIVE/INACTIVE
@@ -52,6 +58,26 @@ static void TaskB(void *argument);
  * startup code enters through main(); main() only performs the two vendor
  * initialisation calls and hands over to app_main(), which owns the four
  * stages required by section 41.
+ *
+ * Section 41 four-stage check: the body below is hardware initialisation ->
+ * FreeRTOS object creation -> task creation -> vTaskStartScheduler(), and
+ * nothing else - no sensor, display, alarm or state logic lives in an init
+ * function here; each subsystem's entry point (SensorTask, DisplayTask,
+ * InputTask, AlarmTask, MotionTask, StateTask) is defined in its own module.
+ *
+ * Section 40 source audit (include/ and src/ vs. the required list): every
+ * listed file exists, none is duplicated or misnamed.  Two headers are on
+ * disk but not on the list, both technically justified, and no code file is:
+ *   - FreeRTOSConfig.h: the mandatory kernel configuration; every FreeRTOS
+ *     project has one and it is not application code.
+ *   - glcdfont.h: the 5x7 glyph table the SSD1306 driver renders with
+ *     (display subsystem data, upstream Adafruit_GFX, kept separate so
+ *     display.h stays an interface instead of 9 KB of font bytes).
+ * Section 17's TaskA/TaskB bodies also stay here rather than in a module of
+ * their own: two 15-line diagnostic loops out of this file are not "the
+ * entire application", which is what section 40 forbids burying in
+ * main.cpp - moving them would add a file to the section 40 list for no
+ * structural gain.
  */
 extern "C" void app_main(void)
 {
