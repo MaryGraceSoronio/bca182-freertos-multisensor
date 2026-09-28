@@ -20,8 +20,19 @@ Real-Time Multisensor Room Monitoring System - BCA182 Laboratory Activity 1.
 
 ## Building
 
-    pio run                 # build
+    pio run                 # build every environment in default_envs
     pio run -t upload       # flash real hardware (not used in the lab)
+    pio test                # run the unit tests (host suites, sections 42-44)
+    pio check               # static code analysis (section 45, cppcheck)
+
+A bare `pio test` walks `default_envs`, so it builds the firmware environment
+first and then runs the host suites under `test/` in `native`.  The firmware
+environment is marked `test_ignore = *` because the `stm32cube` framework has
+no Unity configuration for the embedded runner; see `platformio.ini`.
+
+`pio check` analyses the project once per environment (21 findings under
+`bluepill_f103c8`, 14 under `native`).  Every finding, its cause and its
+resolution are in [`docs/static-analysis.md`](docs/static-analysis.md).
 
 The Wokwi simulation is started from the VS Code command palette
 (`Wokwi: Start Simulator`) and uses the firmware built by `pio run`
@@ -30,10 +41,14 @@ The Wokwi simulation is started from the VS Code command palette
 ## Layout
 
     include/   public headers (FreeRTOSConfig.h, rtos_objects.h, sensors.h, ...)
-    src/       main.cpp, rtos_objects.cpp, sensors.cpp
-    scripts/   freertos_build.py - compiles the FreeRTOS kernel that the
-               PlatformIO STM32Cube builder does not include
-    test/      native unit tests (pio test -e native)
+    src/       main.cpp, rtos_objects.cpp, sensors.cpp, display.cpp, ...
+    scripts/   freertos_build.py     - compiles the FreeRTOS kernel that the
+                                       PlatformIO STM32Cube builder does not include
+               native_host_main.py   - stub main() so the host environment
+                                       survives a bare `pio run`
+    test/      host unit tests (test_alarm, test_navigation, test_state) and
+               the `stubs/` headers the host build compiles against
+    docs/      static-analysis.md - the section 46 findings table
 
 Full documentation is added as the project is built; see the laboratory
 specification in `../Laboratory 1/BCA182 - Laboratory Activity 1.md`.
