@@ -387,7 +387,23 @@ void SensorTask(void *argument)
 
     for( ;; )
     {
-        if( dht22_read(&sample.temperature, &sample.humidity) )
+        bool dht_ok = false;
+
+        for( uint32_t attempt = 0U; attempt < SENSOR_READ_ATTEMPTS; ++attempt )
+        {
+            if( attempt > 0U )
+            {
+                vTaskDelay(pdMS_TO_TICKS(SENSOR_RETRY_DELAY_MS));
+            }
+
+            if( dht22_read(&sample.temperature, &sample.humidity) )
+            {
+                dht_ok = true;
+                break;
+            }
+        }
+
+        if( dht_ok )
         {
             snprintf(line, sizeof(line), "Temperature: %.2f C\r\n", sample.temperature);
             serial_write(line);

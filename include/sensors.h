@@ -40,6 +40,27 @@ typedef struct SensorData
 /** How often SensorTask publishes a sample - section 22, 2000 ms. */
 #define SENSOR_SAMPLE_PERIOD_MS 2000U
 
+/**
+ * Attempts SensorTask makes on one DHT22 reading before it reports failure.
+ *
+ * A single-wire frame can fail transiently - the bit timing is sampled with
+ * the cycle counter while the SysTick interrupt still runs inside the
+ * suspension window (sensors.h' dht22_read comment), so one interrupted
+ * sample can spoil a checksum.  In simulation the very first frame after
+ * boot is the fragile one; every later read at the 2 s cadence is clean, so
+ * re-driving the start pulse after a short gap turns the transient into a
+ * normal reading instead of a false alarm on the serial log.  Only if every
+ * attempt fails is "DHT22 read failed" printed, so a persistent fault is
+ * still reported honestly (section 19: each attempt is finite work followed
+ * by a blocking delay).
+ *
+ * On real hardware the delay between attempts should be raised to the
+ * sensor's 2 s minimum sampling period; 100 ms is safe in simulation and
+ * keeps the retry inside the current 2 s sample slot.
+ */
+#define SENSOR_READ_ATTEMPTS       3U
+#define SENSOR_RETRY_DELAY_MS    100U
+
 /** Configure the sensor GPIOs, the ADC and the DWT cycle counter used for
  *  timing. */
 void sensors_init(void);
