@@ -5,6 +5,9 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
+ * Milestone 10 (PART IX, section 31): MotionTask polls the PIR on PB8 and
+ * reports rising edges; SensorTask publishes the level on every sample and
+ * the OLED's Motion page shows it.
  * Milestone 9 (PART VIII, section 30): AlarmTask consumes alarmQueue and
  * drives the buzzer through the pure evaluateTemperature() decision.
  * Milestone 8 (PART VII, section 28): InputTask decodes the KY-040 rotary
@@ -27,6 +30,7 @@
 #include "display.h"
 #include "input.h"
 #include "alarm.h"
+#include "motion.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
@@ -57,6 +61,7 @@ extern "C" void app_main(void)
     display_init();
     input_init();
     buzzer_init();
+    motion_init();
 
     serial_write(BANNER_1);
     serial_write(BANNER_2);
@@ -66,13 +71,18 @@ extern "C" void app_main(void)
 
     /* --- task creation ---------------------------------------------- */
     /* Sections 38-39: every priority is explicit and justified.
-     * InputTask runs at 3, the highest so far, because a human turn of the
-     * knob is a one-shot event - it cannot be re-run by the kernel the way a
-     * periodic sensor sample can, so it must never queue behind the 2 s
-     * sensor cycle.  Its cost is a few microseconds per 2 ms iteration
-     * followed by a blocking delay (section 19), so the higher priority never
-     * starves SensorTask or DisplayTask; the full reasoning is on InputTask
-     * itself.
+     * MotionTask runs at 3, the joint highest so far, because a PIR edge is
+     * a one-shot event: if it queued behind SensorTask's 2 s cycle a person
+     * entering the room could go unnoticed for two seconds.  Its cost at
+     * that level is one GPIO read, one comparison and one 10 ms blocking
+     * delay per iteration, so it sleeps between detections and cannot starve
+     * anything below it; the full reasoning is on MotionTask itself.
+     * InputTask also runs at 3, for the same one-shot reason - a human turn
+     * of the knob cannot be re-run by the kernel the way a periodic sensor
+     * sample can, so it must never queue behind the 2 s sensor cycle.  Its
+     * cost is a few microseconds per 2 ms iteration followed by a blocking
+     * delay (section 19), so the higher priority never starves
+     * SensorTask or DisplayTask; the full reasoning is on InputTask itself.
      * AlarmTask runs at 2, level with SensorTask: an alarm decision can be no
      * fresher than the sample it is given, so one sensor period (2 s) is its
      * latency budget and a higher priority would buy no earlier alarm, only
@@ -82,13 +92,17 @@ extern "C" void app_main(void)
      * The stack matches Sensor/Display (256 words): publishing a page runs
      * snprintf() and the HAL UART transmit, which a 128 word stack cannot
      * hold - it overflowed on the first turn.  AlarmTask gets the same
-     * headroom for its HAL UART transmit even though its lines are literals. */
+     * headroom for its HAL UART transmit even though its lines are literals.
+     * MotionTask gets 128 words like TaskA/TaskB: its deepest path is one
+     * GPIO read plus the same literal-only UART transmit, with no formatting
+     * and no kernel call deeper than vTaskDelay(). */
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
     xTaskCreate(DisplayTask, "Display", 256, nullptr, 1, nullptr);
     xTaskCreate(InputTask, "Input", 256, nullptr, 3, nullptr);
     xTaskCreate(AlarmTask, "Alarm", 256, nullptr, 2, nullptr);
+    xTaskCreate(MotionTask, "Motion", 128, nullptr, 3, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();

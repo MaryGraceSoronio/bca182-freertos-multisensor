@@ -50,6 +50,12 @@
       "id": "buzzer",
       "top": 470,
       "left": 560
+    },
+    {
+      "type": "wokwi-pir-motion-sensor",
+      "id": "pir",
+      "top": 560,
+      "left": 340
     }
   ],
   "connections": [
@@ -73,7 +79,10 @@
     [ "encoder:VCC", "stm32:3V3.1", "red", [] ],
     [ "encoder:GND", "stm32:GND.1", "black", [] ],
     [ "stm32:B0", "buzzer:2", "green", [] ],
-    [ "buzzer:1", "stm32:GND.1", "black", [] ]
+    [ "buzzer:1", "stm32:GND.1", "black", [] ],
+    [ "pir:VCC", "stm32:3V3.1", "red", [] ],
+    [ "pir:GND", "stm32:GND.1", "black", [] ],
+    [ "pir:OUT", "stm32:B8", "orange", [] ]
   ],
   "serialMonitor": { "display": "always" },
   "dependencies": {}

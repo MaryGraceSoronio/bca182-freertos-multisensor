@@ -27,6 +27,7 @@
 #include "task.h"
 
 #include "rtos_objects.h"
+#include "motion.h"         /* motion_detected() - the PIR level */
 
 /*-----------------------------------------------------------
  * Pin assignment
@@ -411,8 +412,10 @@ void SensorTask(void *argument)
             serial_write("LDR read failed\r\n");
         }
 
-        /* Section 31 - MotionTask has not been created yet. */
-        sample.motionDetected = false;
+        /* Section 31 - MotionTask owns the PIR line; fold its latest level
+         * into the sample so DisplayTask and AlarmTask receive one
+         * self-contained message (sensors.h documents the field). */
+        sample.motionDetected = motion_detected();
 
         ( void )xQueueOverwrite(displayQueue, &sample);
         ( void )xQueueOverwrite(alarmQueue, &sample);

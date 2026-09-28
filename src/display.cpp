@@ -255,9 +255,10 @@ static void oled_text(int x, int y, const char *text)
  * The banner and rule are common to every page; only the title and the value
  * line follow DisplayMode.  Until the first sample arrives the value line is a
  * placeholder ("--.- C" and friends), so the display never shows a
- * measurement that was not actually taken.  Motion has no producer yet -
- * MotionTask is milestone 10 - so its value line is a placeholder whether or
- * not a sample has arrived.
+ * measurement that was not actually taken.  The Motion page reads
+ * SensorData.motionDetected, which SensorTask fills from MotionTask's PIR
+ * poll (milestone 10), so it shows "Detected" only while the sensor's OUT
+ * pin is actually high.
  */
 static void render_page(const SensorData *sample, bool have_sample,
                         DisplayMode mode)
@@ -315,8 +316,15 @@ static void render_page(const SensorData *sample, bool have_sample,
         case DisplayMode::MOTION:
         default:
             title = "Motion";
-            /* M10 fills this in; there is no motion source yet. */
-            snprintf(line, sizeof(line), "--");
+            if( have_sample )
+            {
+                snprintf(line, sizeof(line), "%s",
+                         sample->motionDetected ? "Detected" : "None");
+            }
+            else
+            {
+                snprintf(line, sizeof(line), "--");
+            }
             break;
     }
 
