@@ -5,6 +5,8 @@
  * Target   : STM32 Blue Pill (STM32F103C8T6), Wokwi simulation
  * Framework: STM32Cube (HAL + CMSIS) with native FreeRTOS APIs - no Arduino
  *
+ * Milestone 9 (PART VIII, section 30): AlarmTask consumes alarmQueue and
+ * drives the buzzer through the pure evaluateTemperature() decision.
  * Milestone 8 (PART VII, section 28): InputTask decodes the KY-040 rotary
  * encoder and selects the page DisplayTask draws.  Milestone 7 added
  * DisplayTask and the SSD1306 layout, milestone 6 SensorData and the consumer
@@ -24,6 +26,7 @@
 #include "sensors.h"
 #include "display.h"
 #include "input.h"
+#include "alarm.h"
 
 #define BANNER_1 "BCA182 FreeRTOS Multisensor\r\n"
 #define BANNER_2 "System starting...\r\n"
@@ -53,6 +56,7 @@ extern "C" void app_main(void)
     sensors_init();
     display_init();
     input_init();
+    buzzer_init();
 
     serial_write(BANNER_1);
     serial_write(BANNER_2);
@@ -69,14 +73,22 @@ extern "C" void app_main(void)
      * followed by a blocking delay (section 19), so the higher priority never
      * starves SensorTask or DisplayTask; the full reasoning is on InputTask
      * itself.
+     * AlarmTask runs at 2, level with SensorTask: an alarm decision can be no
+     * fresher than the sample it is given, so one sensor period (2 s) is its
+     * latency budget and a higher priority would buy no earlier alarm, only
+     * preemption of the task that produces the data.  It stays above
+     * DisplayTask (1) so an out-of-range temperature is latched before the
+     * slower OLED redraw; the full reasoning is on AlarmTask itself.
      * The stack matches Sensor/Display (256 words): publishing a page runs
      * snprintf() and the HAL UART transmit, which a 128 word stack cannot
-     * hold - it overflowed on the first turn. */
+     * hold - it overflowed on the first turn.  AlarmTask gets the same
+     * headroom for its HAL UART transmit even though its lines are literals. */
     xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
     xTaskCreate(DisplayTask, "Display", 256, nullptr, 1, nullptr);
     xTaskCreate(InputTask, "Input", 256, nullptr, 3, nullptr);
+    xTaskCreate(AlarmTask, "Alarm", 256, nullptr, 2, nullptr);
 
     /* --- scheduler-driven operation --------------------------------- */
     vTaskStartScheduler();

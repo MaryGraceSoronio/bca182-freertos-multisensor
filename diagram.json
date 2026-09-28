@@ -44,6 +44,12 @@
       "id": "encoder",
       "top": 400,
       "left": 340
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": 470,
+      "left": 560
     }
   ],
   "connections": [
@@ -65,7 +71,9 @@
     [ "encoder:DT", "stm32:B13", "orange", [] ],
     [ "encoder:SW", "stm32:B14", "blue", [] ],
     [ "encoder:VCC", "stm32:3V3.1", "red", [] ],
-    [ "encoder:GND", "stm32:GND.1", "black", [] ]
+    [ "encoder:GND", "stm32:GND.1", "black", [] ],
+    [ "stm32:B0", "buzzer:2", "green", [] ],
+    [ "buzzer:1", "stm32:GND.1", "black", [] ]
   ],
   "serialMonitor": { "display": "always" },
   "dependencies": {}
