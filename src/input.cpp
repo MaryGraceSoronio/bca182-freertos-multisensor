@@ -191,9 +191,10 @@ static void publish_page( DisplayMode *mode )
  * touched, so DisplayTask remains the single owner of the display (section
  * 26).
  *
- * Priority 3 (sections 38-39): the highest in the system so far, because a
- * human turn of the knob is a one-shot event - if this task were queued behind
- * SensorTask's two-second cycle a page change would appear late or not at all.
+ * Priority 3 (sections 38-39): joint highest in the system with MotionTask
+ * and StateTask, because a human turn of the knob is a one-shot event - if
+ * this task were queued behind SensorTask's two-second cycle a page change
+ * would appear late or not at all.
  * The cost of that priority is bounded by the design above: two GPIO reads, a
  * couple of comparisons and one 2 ms blocking delay per iteration, so the task
  * has nothing to do between turns and cannot starve the sensor or display.

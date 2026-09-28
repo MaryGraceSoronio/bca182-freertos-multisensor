@@ -369,6 +369,14 @@ static void render_page(const SensorData *sample, bool have_sample,
  *
  * With the bounded wait the task still blocks when nothing is happening - it
  * is not a polling loop - and section 19 is satisfied.
+ *
+ * Priority 1 (sections 38-39): presentation has no deadline in section 7,
+ * so this is the task that "can tolerate latency" - a redraw may be late
+ * without anything breaking, while a preempted SensorTask or AlarmTask
+ * would cost freshness the alarm cannot get back.  Its ~100 ms I2C flush is
+ * the largest unprivileged stretch of work in the system, which is exactly
+ * why it must sit below the producers.  The full table is on the xTaskCreate
+ * cluster in main.cpp.
  */
 void DisplayTask(void *argument)
 {

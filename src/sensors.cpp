@@ -375,6 +375,15 @@ bool dht22_read(float *temperature_c, float *humidity_percent)
  *
  * Section 19 - the loop performs finite work and then blocks, so it never
  * monopolises the CPU.
+ *
+ * Priority 2 (sections 38-39): the data it produces is by definition up to
+ * one 2 s period old, so one period is also its latency budget - raising it
+ * would not make a reading any fresher than the sensor allows, only let a
+ * DHT22 read preempt the level-3 one-shot tasks (Input, Motion, State) it
+ * has no business interrupting.  It stays above DisplayTask (1) so a sample
+ * queues behind no OLED flush: AlarmTask gets the number before the redraw
+ * gets the pixels.  The full table is on the xTaskCreate cluster in
+ * main.cpp.
  */
 void SensorTask(void *argument)
 {

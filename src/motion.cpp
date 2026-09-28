@@ -124,10 +124,10 @@ bool motion_detected( void )
  * a line that happens to read high at start-up is treated as "already in
  * progress" instead of inventing a detection nobody caused.
  *
- * Priority 3 (sections 38-39): tied with InputTask as the highest in the
- * system, because a motion edge is a one-shot event that exists for only as
- * long as it takes this task to sample it - deferring it by a sensor period
- * would put the whole ACTIVE/INACTIVE response (section 32) behind a
+ * Priority 3 (sections 38-39): tied with InputTask and StateTask at the top
+ * of the system, because a motion edge is a one-shot event that exists for
+ * only as long as it takes this task to sample it - deferring it by a sensor
+ * period would put the whole ACTIVE/INACTIVE response (section 32) behind a
  * schedule that has nothing to do with the person who walked in.  The cost
  * at this priority is bounded to microseconds per 10 ms, so the higher
  * priority never starves SensorTask, AlarmTask or DisplayTask; the reasoning

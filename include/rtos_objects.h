@@ -131,7 +131,7 @@ extern EventGroupHandle_t systemEvents;
  *
  *   Caller           | Priority | Lines it emits
  *   -----------------+----------+------------------------------------------------
- *   TaskA            |    2     | "Task A running"                     (section 17)
+ *   TaskA            |    1     | "Task A running"                     (section 17)
  *   TaskB            |    1     | "Task B running"                     (section 17)
  *   SensorTask       |    2     | "Temperature: ...", "Humidity: ...",
  *                    |          | "Light level: ...", "DHT22 read failed",
@@ -149,7 +149,8 @@ extern EventGroupHandle_t systemEvents;
  * -----------------------------------
  * HAL_UART_Transmit() refuses to start while a transmission is already
  * outstanding: if `huart1.gState` is not HAL_UART_STATE_READY it returns
- * HAL_BUSY at once, having sent nothing.  Before this milestone every caller
+ * HAL_BUSY at once, having sent nothing.  Before the milestone 11 mutex
+ * every caller
  * ignored that return value, so whenever two tasks reached the transmit at
  * the same moment the loser's *whole line* was silently dropped - measured
  * in simulation over 60 s: Temperature: 30 vs Humidity: 29 / Light level: 29,

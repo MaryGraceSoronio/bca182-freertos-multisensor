@@ -75,42 +75,119 @@ extern "C" void app_main(void)
     rtos_objects_create();
 
     /* --- task creation ---------------------------------------------- */
-    /* Sections 38-39: every priority is explicit and justified.
-     * StateTask, MotionTask and InputTask share the top level 3.  StateTask
-     * is created last, so it runs first at start-up: it claims EVENT_ACTIVE
-     * before any consumer can read the group, and from then on it only wakes
-     * for motion evidence or the 15 s timeout - a state change queued behind
-     * the 2 s sensor cycle would delay the section 34 blank/restore for no
-     * gain, and its cost at that level is one blocked event-group wait and a
-     * few comparisons; the full reasoning is on StateTask itself.
-     * MotionTask runs at 3 because a PIR edge is
-     * a one-shot event: if it queued behind SensorTask's 2 s cycle a person
-     * entering the room could go unnoticed for two seconds.  Its cost at
-     * that level is one GPIO read, one comparison and one 10 ms blocking
-     * delay per iteration, so it sleeps between detections and cannot starve
-     * anything below it; the full reasoning is on MotionTask itself.
-     * InputTask also runs at 3, for the same one-shot reason - a human turn
-     * of the knob cannot be re-run by the kernel the way a periodic sensor
-     * sample can, so it must never queue behind the 2 s sensor cycle.  Its
-     * cost is a few microseconds per 2 ms iteration followed by a blocking
-     * delay (section 19), so the higher priority never starves
-     * SensorTask or DisplayTask; the full reasoning is on InputTask itself.
-     * AlarmTask runs at 2, level with SensorTask: an alarm decision can be no
-     * fresher than the sample it is given, so one sensor period (2 s) is its
-     * latency budget and a higher priority would buy no earlier alarm, only
-     * preemption of the task that produces the data.  It stays above
-     * DisplayTask (1) so an out-of-range temperature is latched before the
-     * slower OLED redraw; the full reasoning is on AlarmTask itself.
-     * The stack matches Sensor/Display (256 words): publishing a page runs
-     * snprintf() and the HAL UART transmit, which a 128 word stack cannot
-     * hold - it overflowed on the first turn.  AlarmTask gets the same
-     * headroom for its HAL UART transmit even though its lines are literals.
-     * MotionTask gets 128 words like TaskA/TaskB: its deepest path is one
-     * GPIO read plus the same literal-only UART transmit, with no formatting
-     * and no kernel call deeper than vTaskDelay().  StateTask sits between
-     * them at 192: literal-only output like MotionTask, but an event-group
-     * wait and set/clear path that wants more headroom than a bare delay. */
-    xTaskCreate(TaskA, "TaskA", 128, nullptr, 2, nullptr);
+    /* Sections 38-39: priority is scheduling urgency, so the whole
+     * assignment is recorded here as one table - the single place that
+     * carries the justification (each subsystem file repeats a short
+     * version next to its task).  Every task is listed, not only the five
+     * in section 38's suggested table: StateTask is only "recommended" by
+     * section 7 but section 59 still wants a justified priority for it, and
+     * the two section 17 diagnostics need one too.  Stack is the xTaskCreate
+     * depth in words (4 bytes each), not bytes.  The table only means
+     * anything because configUSE_PREEMPTION and configUSE_TIME_SLICING are
+     * both 1 and configMAX_PRIORITIES is 7 (FreeRTOSConfig.h).
+     *
+     *   task       | prio | stack | why this urgency / acceptable latency /
+     *              |      | words | what breaks if the priority is wrong
+     *   -----------+------+-------+-----------------------------------------
+     *   InputTask  | 3    | 256   | One-shot: a knob detent is an edge that
+     *              |      |       | exists only while the pins move, so it
+     *              |      |       | cannot be replayed the way a missed
+     *              |      |       | sample can.  Budget: one 2 ms poll.
+     *              |      |       | Too low: behind the 2 s sensor cycle or
+     *              |      |       | a ~100 ms OLED flush a page turn lands
+     *              |      |       | late.  Too high: it would preempt the
+     *              |      |       | state machine for a two-pin read.
+     *   MotionTask | 3    | 128   | One-shot: the PIR's OUT pulse is the
+     *              |      |       | only copy of the evidence.  Budget: one
+     *              |      |       | 10 ms poll.  Too low: a person entering
+     *              |      |       | would not reach the state machine until
+     *              |      |       | SensorTask's next 2 s sample - the
+     *              |      |       | ACTIVE/INACTIVE response trails reality
+     *              |      |       | by a whole sample period.  Too high:
+     *              |      |       | none - it sleeps after every read.
+     *   StateTask  | 3    | 192   | Turns that evidence into the result
+     *              |      |       | DisplayTask and InputTask gate on.
+     *              |      |       | Budget: one motion poll (10 ms).  Too
+     *              |      |       | low: a transition queues behind the 2 s
+     *              |      |       | sample, so the OLED stays lit ~2 s too
+     *              |      |       | long in an empty room or stays blank
+     *              |      |       | ~2 s too long in an occupied one.  Too
+     *              |      |       | high: buys nothing - its wait is one
+     *              |      |       | timeout-bounded event-group call.
+     *   SensorTask | 2    | 256   | Periodic producer whose data is by
+     *              |      |       | definition up to 2 s old, so its urgency
+     *              |      |       | equals its own period.  Budget: one 2 s
+     *              |      |       | cycle (vTaskDelayUntil).  Too low: the
+     *              |      |       | sample queues behind a ~100 ms redraw
+     *              |      |       | and AlarmTask decides on staler data.
+     *              |      |       | Too high: a DHT22 read plus formatting
+     *              |      |       | would preempt the level-3 one-shot
+     *              |      |       | tasks without making any reading
+     *              |      |       | fresher than its own sensor period.
+     *   AlarmTask  | 2    | 256   | Its input only changes every 2 s, so
+     *              |      |       | that is its whole latency budget - level
+     *              |      |       | with the producer, never above it.
+     *              |      |       | Budget: one sensor period.  Too low: an
+     *              |      |       | out-of-range temperature would latch
+     *              |      |       | after the OLED redraw instead of before
+     *              |      |       | it.  Too high: no earlier alarm (the
+     *              |      |       | data cannot arrive sooner), only
+     *              |      |       | preemption of the one-shot tasks above.
+     *   DisplayTask| 1    | 256   | Presentation only - section 7 sets no
+     *              |      |       | deadline for a pixel, so this is the
+     *              |      |       | "can tolerate latency" end.  Budget: a
+     *              |      |       | redraw cycle (~100 ms I2C flush of the
+     *              |      |       | 1024-byte framebuffer).  Too high: that
+     *              |      |       | flush could preempt SensorTask or
+     *              |      |       | AlarmTask and push samples late.  Too
+     *              |      |       | low: nothing below it exists (0 is the
+     *              |      |       | idle task).
+     *   TaskA      | 1    | 128   | Diagnostic (section 17): nobody acts on
+     *              |      |       | the line, so unbounded latency is
+     *              |      |       | acceptable - section 39's "can
+     *              |      |       | tolerate latency" class.  Too high: at
+     *              |      |       | the old priority 2 it could preempt
+     *              |      |       | DisplayTask for a demo line - nothing
+     *              |      |       | gained, a product task delayed.  Too
+     *              |      |       | low: there is no level below 1 to fall
+     *              |      |       | to except idle.
+     *   TaskB      | 1    | 128   | Identical duty and identical reasoning
+     *              |      |       | as TaskA; the pair deliberately shares
+     *              |      |       | level 1 with DisplayTask (see below).
+     *
+     * Shared levels cannot starve each other: at 3, InputTask (2 ms poll),
+     * MotionTask (10 ms poll) and StateTask (one blocking event-group wait)
+     * all return to sleep after microseconds of work; at 2, AlarmTask sits
+     * in xQueueReceive until SensorTask publishes; at 1, DisplayTask waits
+     * on its queues and TaskA/TaskB print one line and block for 1000 ms -
+     * and TaskB's 500 ms start-up offset keeps the two diagnostics half a
+     * period apart forever, so they are never ready in the same tick.
+     * Round-robin time slicing only ever divides idle time between them.
+     *
+     * Priority inversion, checked per shared resource - what a poor
+     * priority choice would cost, section 39 asks for this too:
+     *   - serialMutex: the one place a level-3 task can wait behind a level
+     *     1/2 holder; priority inheritance (section 36, see rtos_objects.h)
+     *     bounds that wait to a single 15-byte UART line.
+     *   - displayQueue / alarmQueue / modeQueue: length 1 with
+     *     xQueueOverwrite (section 11 note), so SensorTask and InputTask
+     *     never block on DisplayTask's ~100 ms flush at all.
+     *   - systemEvents: StateTask's wait carries the 15 s timeout and
+     *     MotionTask only ever sets bits - nobody waits on a holder.
+     *   - I2C1: owned by DisplayTask alone (section 26), so there is no
+     *     second contender; the DHT22 bit-bang suspends the scheduler only
+     *     inside SensorTask for ~5 ms and ends before any print, which is
+     *     the worst-case delay level 3 ever eats.
+     *   - portMAX_DELAY is used only on genuinely idle resources (the alarm
+     *     queue between samples, the serial line nobody else is sending).
+     *
+     * Stacks: Sensor/Display/Input/Alarm print or format (snprintf + the
+     * HAL UART transmit) and get 256 words - 128 overflowed DisplayTask on
+     * its first page turn.  StateTask is 192: literal-only output but an
+     * event-group wait path that wants more than a bare delay.  Motion and
+     * the two diagnostics are 128: one GPIO read or one literal line plus a
+     * delay, no formatting, no kernel call deeper than vTaskDelay(). */
+    xTaskCreate(TaskA, "TaskA", 128, nullptr, 1, nullptr);
     xTaskCreate(TaskB, "TaskB", 128, nullptr, 1, nullptr);
     xTaskCreate(SensorTask, "Sensor", 256, nullptr, 2, nullptr);
     xTaskCreate(DisplayTask, "Display", 256, nullptr, 1, nullptr);
@@ -138,10 +215,19 @@ extern "C" int main(void)
  * messages, both blocking between executions (section 19 forbids an
  * uncontrolled busy loop).
  *
- * Priorities are explicit from the outset - section 18 asks for the assigned
- * priority of every task and section 39 requires a scheduling justification.
- * TaskA runs at priority 2, TaskB at priority 1: TaskA is allowed to answer
- * first after both wake up, which is what produces the alternating output.
+ * Both tasks run at priority 1 (sections 18, 38-39): section 18 wants the
+ * assigned priority of every task on record and section 39 wants a reason.
+ * Diagnostics are the class that "can tolerate latency" - no consumer acts
+ * on these lines - so they take the lowest level in the system, below every
+ * product task and level with DisplayTask.  They cannot starve it: each
+ * writes one line and blocks for 1000 ms, so they hold the CPU for
+ * microseconds per second, and they cannot starve each other because the
+ * duties are identical and, with TaskB's offset, the two are never ready in
+ * the same tick (round-robin time slicing would settle it if they ever
+ * were).  TaskA carried priority 2 until milestone 12, when it was lowered:
+ * at 2 it could preempt a DisplayTask flush in progress to print a demo
+ * line - a cost with no benefit, which is exactly the poorly selected
+ * priority section 39 asks students to be able to name.
  *
  * TaskB deliberately waits 500 ms before its first line.  Both tasks then use
  * the same 1000 ms period, so they stay half a period apart forever.  The
