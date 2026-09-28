@@ -183,7 +183,7 @@ The four functional-test rows that depend on those interactions were verified wi
 
 **Source code:** `https://github.com/<your-username>/bca182-freertos-multisensor`
 
-> **The repository is not yet public.** It exists locally with its full commit history (30 milestone commits, M0–M16) and has not been pushed to GitHub. Replace `<your-username>` above with the real account name when the repository is published, then update this line before submitting the post.
+> **The repository is not yet public.** It exists locally with its full commit history — one commit per engineering milestone, no bulk commits — and has not been pushed to GitHub. Replace `<your-username>` above with the real account name when the repository is published, then update this line before submitting the post.
 
 What is in it:
 
