@@ -144,9 +144,12 @@ extern "C" int main(void)
  * first after both wake up, which is what produces the alternating output.
  *
  * TaskB deliberately waits 500 ms before its first line.  Both tasks then use
- * the same 1000 ms period, so they stay half a period apart forever and the
- * two messages never collide on the shared USART before the serial mutex is
- * introduced in milestone 12.
+ * the same 1000 ms period, so they stay half a period apart forever.  The
+ * phase offset keeps the *timing* apart; the section 36 mutex inside
+ * serial_write() (milestone 11) keeps the *bytes* apart, so even a sensor or
+ * state line that lands inside that window is written as one unbroken line.
+ * Before that mutex existed the offset was the only defence, and it was not
+ * enough: a colliding task still lost its whole line to HAL_BUSY.
  */
 static void TaskA(void *argument)
 {

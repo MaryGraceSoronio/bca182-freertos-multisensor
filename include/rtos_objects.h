@@ -26,6 +26,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "event_groups.h"
+#include "semphr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -108,16 +109,95 @@ extern QueueHandle_t modeQueue;
  */
 extern EventGroupHandle_t systemEvents;
 
+/*---------------------------------------------------------------
+ * Section 36 - shared-resource protection: the serial-output mutex
+ *
+ * (This block is the section 37 material: resource, competing tasks and
+ * failure mode, written so the report can be lifted straight from it.)
+ *
+ * The shared resource
+ * -------------------
+ * USART1 transmit, reached only through serial_write(): the peripheral's
+ * single TX path, its HAL handle `huart1` and the HAL state machine inside
+ * it (gState / TxXferCount / the transmit loop that polls TXE).  There is
+ * exactly one USART1 and one handle, and every diagnostic line in the system
+ * funnels through them, which is why the protection belongs at that one
+ * choke point and not in the callers.
+ *
+ * The competing tasks
+ * -------------------
+ * Every serial_write() caller in the system (the list was taken from
+ * `grep -n "serial_write("` over src/, so nothing can be missed):
+ *
+ *   Caller           | Priority | Lines it emits
+ *   -----------------+----------+------------------------------------------------
+ *   TaskA            |    2     | "Task A running"                     (section 17)
+ *   TaskB            |    1     | "Task B running"                     (section 17)
+ *   SensorTask       |    2     | "Temperature: ...", "Humidity: ...",
+ *                    |          | "Light level: ...", "DHT22 read failed",
+ *                    |          | "LDR read failed"
+ *   InputTask        |    3     | "Page: ..."
+ *   MotionTask       |    3     | "Motion: detected"
+ *   StateTask        |    3     | "State: ACTIVE" / "State: INACTIVE"
+ *   AlarmTask        |    2     | "Alarm: NORMAL" / "LOW_..." / "HIGH_..."
+ *   app_main         |    n/a   | the two banner lines, before the scheduler runs
+ *
+ * DisplayTask is the only task that never prints: it owns the OLED (section
+ * 26) and reports nothing on the serial console.
+ *
+ * The failure mode the mutex prevents
+ * -----------------------------------
+ * HAL_UART_Transmit() refuses to start while a transmission is already
+ * outstanding: if `huart1.gState` is not HAL_UART_STATE_READY it returns
+ * HAL_BUSY at once, having sent nothing.  Before this milestone every caller
+ * ignored that return value, so whenever two tasks reached the transmit at
+ * the same moment the loser's *whole line* was silently dropped - measured
+ * in simulation over 60 s: Temperature: 30 vs Humidity: 29 / Light level: 29,
+ * and "Task A running" 56 vs "Task B running" 60 (four Task A lines lost),
+ * plus the "State: ACTIVE" line that used to disappear after a motion
+ * re-activation.  The second, latent failure mode is byte-level
+ * interleaving: HAL_UART_Transmit() emits one byte per TXE poll, so a caller
+ * that retried with a timeout (or any preemption inside the loop) could let
+ * a second task's characters land between this line's characters, producing
+ * garbled output such as "TempeHumidity: 61.20 %\r\nrature: 25.40 C".  One
+ * mutex-guarded call = one atomic, unbroken line, which kills both.
+ *
+ * Mutex, not binary semaphore
+ * ---------------------------
+ * xSemaphoreCreateMutex() (not xSemaphoreCreateBinary()) because only a
+ * mutex has an owner, and ownership is what enables priority inheritance:
+ * if InputTask (priority 3) has to wait while SensorTask (priority 2) holds
+ * the USART, the holder is boosted to the waiter's priority for the duration
+ * of the critical section, so an unrelated mid-priority task cannot stretch
+ * the wait - the classic unbounded priority-inversion stall a binary
+ * semaphore would allow.  Section 36 shows the take/give pair; section 9
+ * requires a mutex with a legitimate role, and this is it.
+ *
+ * Deadlock / timeout reasoning
+ * ----------------------------
+ * portMAX_DELAY is safe here because no caller prints from an ISR (SysTick
+ * and the kernel hooks use serial_write_fault(), see rtos_objects.cpp) and
+ * no caller holds a critical section or suspends the scheduler across a
+ * print (the DHT22 suspension window in sensors.cpp ends before SensorTask
+ * formats its lines), so nothing can be waiting on a task that is not
+ * allowed to run.  serial_write() takes the mutex once and gives it once
+ * around the whole transmit - never recursively, so a task can never block
+ * on a mutex it already owns.
+ *
+ * Valid only after rtos_objects_create() has run - and serial_write() is
+ * careful not to touch it before then, see the pre-scheduler note there.
+ */
+extern SemaphoreHandle_t serialMutex;
+
 /**
  * Create every FreeRTOS object the application uses: the sensor queues, the
- * system event group (section 35) and - in a later milestone - the
- * serial-output mutex.
+ * system event group (section 35) and the serial-output mutex (section 36).
  *
  * Must be called after hardware initialisation and before the first
  * xTaskCreate(), so that no task can observe a half-built object.
  *
  * Milestone 6: displayQueue and alarmQueue.  Milestone 8 adds modeQueue.
- * Milestone 10 adds systemEvents.
+ * Milestone 10 adds systemEvents.  Milestone 11 adds serialMutex.
  */
 void rtos_objects_create(void);
 
@@ -128,17 +208,24 @@ void rtos_objects_create(void);
  * section 36 makes it a shared resource that must be guarded by a FreeRTOS
  * mutex; keeping the peripheral handle, the writer and the mutex together
  * means there is exactly one place where that protection is applied
- * (milestone 12).  Section 40 allows the file list to differ from the
+ * (milestone 11).  Section 40 allows the file list to differ from the
  * suggested one when there is a technical justification.
  */
 void serial_init(void);
 
 /**
- * Blocking transmit of a zero-terminated string.
+ * Blocking transmit of a zero-terminated string, as one atomic line.
  *
- * Called from task context after the scheduler has started.  Section 36's
- * mutex is taken here in milestone 12; until then the USART is used directly
- * and the diagnostic tasks keep their output phases apart instead.
+ * Section 36's mutex is taken here - around the whole HAL_UART_Transmit(),
+ * so a caller never sees its line split or dropped - and released on the way
+ * out.  Callers keep their ordinary signature: nobody outside this file
+ * takes serialMutex, which is the entire benefit of guarding the single
+ * choke point.  Before the scheduler starts the mutex must not be taken, so
+ * serial_write() transmits directly in that case (see the guard documented
+ * on the definition); the banner printed by app_main() therefore still
+ * appears exactly once.  Kernel fault paths deliberately do NOT come through
+ * here - they use serial_write_fault(), which bypasses both the HAL and the
+ * mutex.
  */
 void serial_write(const char *text);
 

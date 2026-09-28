@@ -124,9 +124,11 @@ static void buzzer_write( bool active )
  * The whole line as one literal, so a single serial_write() emits it.
  *
  * Assembling it from fragments would give a preemption the chance to slot
- * another task's line into the middle of this one - there is no serial mutex
- * until milestone 12 - and the line is fixed text anyway, so no formatting
- * is needed and the task's stack stays small.
+ * another task's line into the middle of this one - and although serial_write()
+ * now holds the section 36 mutex for the whole transmit (milestone 11), a
+ * literal that is emitted in one call never has to depend on that protection
+ * in the first place.  The line is fixed text anyway, so no formatting is
+ * needed and the task's stack stays small.
  */
 static const char *alarm_line( AlarmState state )
 {

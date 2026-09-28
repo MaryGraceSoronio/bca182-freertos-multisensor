@@ -34,6 +34,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "sensors.h"    /* SensorData - the queue item type */
 #include "input.h"      /* DisplayMode - the mode queue item type */
@@ -50,6 +51,8 @@ QueueHandle_t modeQueue    = nullptr;
 
 EventGroupHandle_t systemEvents = nullptr;
 
+SemaphoreHandle_t serialMutex = nullptr;
+
 void rtos_objects_create( void )
 {
     /* Length one: combined with xQueueOverwrite() the consumers always read
@@ -57,17 +60,29 @@ void rtos_objects_create( void )
      * the page rather than a SensorData (milestone 8).  The event group
      * (milestone 10, section 35) starts with every bit clear - no state has
      * been decided yet - and StateTask claims EVENT_ACTIVE as its first act.
-     * The serial mutex is added in a later milestone, with the subsystem it
-     * serves. */
+     * serialMutex (milestone 11, section 36) guards USART1 for every
+     * serial_write() caller - see the section 36/37 statement in
+     * rtos_objects.h and the take/give pair in serial_write() below. */
     displayQueue = xQueueCreate(1, sizeof(SensorData));
     alarmQueue   = xQueueCreate(1, sizeof(SensorData));
     modeQueue    = xQueueCreate(1, sizeof(DisplayMode));
     systemEvents = xEventGroupCreate();
 
+    /* A mutex, not a binary semaphore (xSemaphoreCreateMutex(), not
+     * xSemaphoreCreateBinary()): only a mutex has an owner, and ownership is
+     * what switches on priority inheritance - the waiter's priority is lent
+     * to the holder for the length of the critical section, which is what
+     * keeps a mid-priority task from stretching the wait on the USART.  A
+     * binary semaphore would serialise the writes just as well but could
+     * still suffer unbounded priority inversion, and section 9 wants a
+     * mechanism whose properties are actually used. */
+    serialMutex = xSemaphoreCreateMutex();
+
     configASSERT(displayQueue != nullptr);
     configASSERT(alarmQueue != nullptr);
     configASSERT(modeQueue != nullptr);
     configASSERT(systemEvents != nullptr);
+    configASSERT(serialMutex != nullptr);
 }
 
 /** USART1, 115200 8N1 - matches monitor_speed in platformio.ini. */
@@ -93,12 +108,55 @@ void serial_init( void )
     }
 }
 
+/**
+ * Transmit one line atomically - section 36's take/give pair.
+ *
+ * The entire HAL_UART_Transmit() runs between xSemaphoreTake() and
+ * xSemaphoreGive(), so to every other task the line is indivisible: it can
+ * no longer be refused with HAL_BUSY (the measured defect - a whole line
+ * silently vanishing whenever two tasks reached the USART together) and it
+ * cannot be cut in half so that a second task's characters land between
+ * this line's bytes.  One call = one unbroken line, and no caller has to
+ * know the mutex exists: the protection lives at this single choke point.
+ * The section 37 statement (shared resource, every competing task, both
+ * failure modes) is on serialMutex in rtos_objects.h.
+ *
+ * Pre-scheduler guard: taking a mutex before vTaskStartScheduler() is
+ * illegal - nothing can ever unblock the waiter - and app_main() prints the
+ * banner before rtos_objects_create() has even built serialMutex.  So the
+ * mutex is taken only while the scheduler is provably running; before that
+ * the transmit happens directly, with no lock, and there is no concurrency
+ * to protect against because no other task exists yet.  That is why the two
+ * banner lines still appear exactly once in the log while every task line
+ * afterwards is serialised.
+ *
+ * portMAX_DELAY cannot hang: every serial_write() caller is task context -
+ * never an ISR (SysTick_Handler, the stack-overflow hook, the malloc hook
+ * and vAssertCalled all use serial_write_fault() below instead) - no caller
+ * disables interrupts, enters a critical section or suspends the scheduler
+ * around a print, and the mutex is given back on the same path that took
+ * it, so no task can be left waiting on an owner that is not allowed to run.
+ */
 void serial_write( const char *text )
 {
-    /* Milestone 12 wraps this HAL_UART_Transmit() call in the section 36
-     * mutex.  Before the scheduler runs the mutex must not be taken, so the
-     * guard is added together with the mutex itself. */
+    const bool locked = ( serialMutex != nullptr ) &&
+                        ( xTaskGetSchedulerState() == taskSCHEDULER_RUNNING );
+
+    if( locked )
+    {
+        ( void )xSemaphoreTake(serialMutex, portMAX_DELAY);
+    }
+
+    /* Return value deliberately ignored: with the mutex held this handle
+     * cannot be BUSY_TX for anyone else, and a timeout here would only mean
+     * the wire itself stopped - neither is a condition the caller could
+     * act on. */
     HAL_UART_Transmit(&huart1, (uint8_t *)text, (uint16_t)strlen(text), 1000U);
+
+    if( locked )
+    {
+        ( void )xSemaphoreGive(serialMutex);
+    }
 }
 
 /* Register-level transmit: owns no HAL state, cannot time out and therefore
@@ -117,6 +175,13 @@ static void serial_write_raw( const char *text )
     }
 }
 
+/* Fault reporting deliberately bypasses BOTH the HAL and the section 36
+ * mutex: it can run from a hook whose stack is already exhausted, from
+ * inside configASSERT() - possibly the assert that fired while serialMutex
+ * was held by the very task that faulted - or from an interrupt.  A
+ * non-recursive mutex taken here could deadlock precisely when the system
+ * is already in trouble, so this path never touches serialMutex.  Section 37
+ * therefore pairs every mutex with this free-running escape hatch. */
 static void serial_write_fault( const char *text )
 {
     serial_write_raw(text);
