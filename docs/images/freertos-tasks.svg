@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 940" width="1160" height="940" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1160" height="940" fill="#ffffff"/>
+
+  <text x="40" y="30" font-size="20" font-weight="700" fill="#0f172a">FreeRTOS task communication</text>
+  <text x="40" y="52" font-size="13" fill="#475569">One row per communication path: producer task &#8594; kernel object &#8594; consumer task, with the message and the blocking behaviour of each path.</text>
+
+  <!-- ============ lane 1 : SensorTask -> displayQueue -> DisplayTask ============ -->
+  <rect x="40" y="80" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="112" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">SensorTask &#183; prio 2<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">period 2000 ms &#183; vTaskDelayUntil</tspan></text>
+  <rect x="400" y="80" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="106" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">displayQueue<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">length 1 &#183; xQueueOverwrite</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">item: SensorData</tspan></text>
+  <rect x="850" y="80" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="112" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">DisplayTask &#183; prio 1<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">renders one page; waits &#8804; 50 ms</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="120" x2="400" y2="120"/>
+    <line x1="770" y1="120" x2="850" y2="120"/>
+  </g>
+
+  <!-- ============ lane 2 : SensorTask -> alarmQueue -> AlarmTask ============ -->
+  <rect x="40" y="180" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="212" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">SensorTask &#183; prio 2<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">same sample, second consumer</tspan></text>
+  <rect x="400" y="180" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="206" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">alarmQueue<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">length 1 &#183; xQueueOverwrite</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">item: SensorData</tspan></text>
+  <rect x="850" y="180" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="212" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">AlarmTask &#183; prio 2<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">blocks with portMAX_DELAY</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="220" x2="400" y2="220"/>
+    <line x1="770" y1="220" x2="850" y2="220"/>
+  </g>
+
+  <!-- ============ lane 3 : InputTask -> modeQueue -> DisplayTask ============ -->
+  <rect x="40" y="280" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="312" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">InputTask &#183; prio 3<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">2 ms poll; publishes on a detent</tspan></text>
+  <rect x="400" y="280" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="306" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">modeQueue<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">length 1 &#183; xQueueOverwrite</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">item: DisplayMode</tspan></text>
+  <rect x="850" y="280" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="312" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">DisplayTask &#183; prio 1<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">checked with a 0 ms timeout</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="320" x2="400" y2="320"/>
+    <line x1="770" y1="320" x2="850" y2="320"/>
+  </g>
+
+  <!-- ============ lane 4 : MotionTask -> EVENT_MOTION -> StateTask ============ -->
+  <rect x="40" y="380" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="412" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">MotionTask &#183; prio 3<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">sets the bit on every 10 ms poll</tspan></text>
+  <rect x="400" y="380" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="406" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">systemEvents &#183; EVENT_MOTION (BIT1)<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">level, not edge: the PIR re-triggers</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">StateTask clears it on exit</tspan></text>
+  <rect x="850" y="380" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="412" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">StateTask &#183; prio 3<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">waits 15 s, clear-on-exit</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="420" x2="400" y2="420"/>
+    <line x1="770" y1="420" x2="850" y2="420"/>
+  </g>
+
+  <!-- ============ lane 5 : StateTask -> EVENT_ACTIVE -> DisplayTask ============ -->
+  <rect x="40" y="480" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="512" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">StateTask &#183; prio 3<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">set on ACTIVE, cleared on INACTIVE</tspan></text>
+  <rect x="400" y="480" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="506" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">systemEvents &#183; EVENT_ACTIVE (BIT0)<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">mirrors the current state</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">read, never cleared by consumers</tspan></text>
+  <rect x="850" y="480" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="512" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">DisplayTask &#183; prio 1<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">blanks / restores the OLED</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="520" x2="400" y2="520"/>
+    <line x1="770" y1="520" x2="850" y2="520"/>
+  </g>
+
+  <!-- ============ lane 6 : StateTask -> EVENT_ACTIVE -> InputTask ============ -->
+  <rect x="40" y="580" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="612" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">StateTask &#183; prio 3<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">same bit, second consumer</tspan></text>
+  <rect x="400" y="580" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="606" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">systemEvents &#183; EVENT_ACTIVE (BIT0)<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">read with xEventGroupGetBits()</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">no clearing, no blocking</tspan></text>
+  <rect x="850" y="580" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="612" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">InputTask &#183; prio 3<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">detents ignored while INACTIVE</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="620" x2="400" y2="620"/>
+    <line x1="770" y1="620" x2="850" y2="620"/>
+  </g>
+
+  <!-- ============ lane 7 : AlarmTask -> EVENT_ALARM -> DisplayTask ============ -->
+  <rect x="40" y="680" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="712" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">AlarmTask &#183; prio 2<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">set whenever the reading is out of range</tspan></text>
+  <rect x="400" y="680" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="706" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">systemEvents &#183; EVENT_ALARM (BIT2)<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">set out of range, cleared to NORMAL</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">read once per DisplayTask pass</tspan></text>
+  <rect x="850" y="680" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="712" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">DisplayTask &#183; prio 1<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">appends 'ALARM' to the value</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="720" x2="400" y2="720"/>
+    <line x1="770" y1="720" x2="850" y2="720"/>
+  </g>
+
+  <!-- ============ lane 8 : all writers -> serialMutex -> host console ============ -->
+  <rect x="40" y="780" width="280" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="180" y="818" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">TaskA, TaskB, Sensor, Input,<tspan x="180" dy="22" font-size="12" font-weight="400" fill="#334155">Motion, State and Alarm</tspan></text>
+  <rect x="400" y="780" width="370" height="80" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="585" y="806" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">serialMutex<tspan x="585" dy="22" font-size="12" font-weight="400" fill="#334155">xSemaphoreCreateMutex - priority inheritance</tspan><tspan x="585" dy="19" font-size="12" font-weight="400" fill="#334155">one take / give around one UART line</tspan></text>
+  <rect x="850" y="780" width="270" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="985" y="812" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">Host PC &#183; USART1 115200 8N1<tspan x="985" dy="22" font-size="12" font-weight="400" fill="#334155">one atomic line, never split</tspan></text>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="320" y1="820" x2="400" y2="820"/>
+    <line x1="770" y1="820" x2="850" y2="820"/>
+  </g>
+
+  <text x="40" y="890" font-size="12" fill="#475569">Each row is one communication path, so a task that takes part in several paths appears on several rows. Priority, stack depth and period come from the task table in src/main.cpp.</text>
+  <text x="40" y="910" font-size="12" fill="#475569">Queue receives are bounded as shown, so no producer ever blocks on a slow consumer. Event-group bits are read with xEventGroupGetBits(), so a consumer never blocks</text>
+  <text x="40" y="930" font-size="12" fill="#475569">and never clears a producer's bit - only StateTask consumes EVENT_MOTION, with clear-on-exit. DisplayTask is the one task that never calls serial_write().</text>
+</svg>

@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 525" width="1160" height="525" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1160" height="510" fill="#ffffff"/>
+
+  <text x="24" y="30" font-size="20" font-weight="700" fill="#0f172a">System architecture</text>
+  <text x="24" y="52" font-size="13" fill="#475569">One column per subsystem: Wokwi hardware &#8594; driver module in src/ &#8594; FreeRTOS task &#8594; what it publishes. Inter-task paths are in Figure 3.</text>
+
+  <!-- ================= row label chips ================= -->
+  <g fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5">
+    <rect x="16" y="64" width="104" height="84" rx="6"/>
+    <rect x="16" y="168" width="104" height="84" rx="6"/>
+    <rect x="16" y="272" width="104" height="84" rx="6"/>
+    <rect x="16" y="376" width="104" height="84" rx="6"/>
+  </g>
+  <g font-size="13" font-weight="700" fill="#334155" text-anchor="middle">
+    <text x="68" y="102">Hardware<tspan x="68" dy="18" font-weight="400">(Wokwi part)</tspan></text>
+    <text x="68" y="206">Driver module<tspan x="68" dy="18" font-weight="400">(src/ file)</tspan></text>
+    <text x="68" y="310">FreeRTOS task<tspan x="68" dy="18" font-weight="400">(priority)</tspan></text>
+    <text x="68" y="414">Publishes<tspan x="68" dy="18" font-weight="400">or drives</tspan></text>
+  </g>
+
+  <!-- ================= row 1: hardware ================= -->
+  <g fill="#eef2ff" stroke="#6366f1" stroke-width="1.5">
+    <rect x="130" y="64" width="137" height="84" rx="8"/>
+    <rect x="273" y="64" width="137" height="84" rx="8"/>
+    <rect x="416" y="64" width="137" height="84" rx="8"/>
+    <rect x="559" y="64" width="137" height="84" rx="8"/>
+    <rect x="702" y="64" width="137" height="84" rx="8"/>
+    <rect x="845" y="64" width="137" height="84" rx="8"/>
+    <rect x="988" y="64" width="137" height="84" rx="8"/>
+  </g>
+  <g text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">
+    <text x="198.5" y="94">Sensors<tspan x="198.5" dy="21" font-size="12" font-weight="400" fill="#334155">DHT22 &#183; PA1</tspan><tspan x="198.5" dy="19" font-size="12" font-weight="400" fill="#334155">LDR &#183; PA0</tspan></text>
+    <text x="341.5" y="102">PIR sensor<tspan x="341.5" dy="22" font-size="12" font-weight="400" fill="#334155">OUT &#183; PB8</tspan></text>
+    <text x="484.5" y="102">Rotary encoder<tspan x="484.5" dy="22" font-size="12" font-weight="400" fill="#334155">CLK/DT/SW &#183; PB12-14</tspan></text>
+    <text x="627.5" y="102">SSD1306 OLED<tspan x="627.5" dy="22" font-size="12" font-weight="400" fill="#334155">SCL/SDA &#183; PB6/7</tspan></text>
+    <text x="770.5" y="102">Buzzer<tspan x="770.5" dy="22" font-size="12" font-weight="400" fill="#334155">drive &#183; PB0</tspan></text>
+    <text x="913.5" y="102">no hardware<tspan x="913.5" dy="22" font-size="12" font-weight="400" fill="#334155">follows PIR evidence</tspan></text>
+    <text x="1056.5" y="102">Host PC<tspan x="1056.5" dy="22" font-size="12" font-weight="400" fill="#334155">TX/RX &#183; PA9/10</tspan></text>
+  </g>
+
+  <!-- ================= row 2: driver modules ================= -->
+  <g fill="#ecfeff" stroke="#0891b2" stroke-width="1.5">
+    <rect x="130" y="168" width="137" height="84" rx="8"/>
+    <rect x="273" y="168" width="137" height="84" rx="8"/>
+    <rect x="416" y="168" width="137" height="84" rx="8"/>
+    <rect x="559" y="168" width="137" height="84" rx="8"/>
+    <rect x="702" y="168" width="137" height="84" rx="8"/>
+    <rect x="845" y="168" width="137" height="84" rx="8"/>
+    <rect x="988" y="168" width="137" height="84" rx="8"/>
+  </g>
+  <g text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">
+    <text x="198.5" y="198">sensors.cpp<tspan x="198.5" dy="21" font-size="12" font-weight="400" fill="#334155">dht22_read()</tspan><tspan x="198.5" dy="19" font-size="12" font-weight="400" fill="#334155">ldr_read_raw()</tspan></text>
+    <text x="341.5" y="198">motion.cpp<tspan x="341.5" dy="21" font-size="12" font-weight="400" fill="#334155">poll every 10 ms</tspan><tspan x="341.5" dy="19" font-size="12" font-weight="400" fill="#334155">motion_detected()</tspan></text>
+    <text x="484.5" y="198">input.cpp<tspan x="484.5" dy="21" font-size="12" font-weight="400" fill="#334155">edge decode, debounce</tspan><tspan x="484.5" dy="19" font-size="12" font-weight="400" fill="#334155">page navigation</tspan></text>
+    <text x="627.5" y="198">display.cpp<tspan x="627.5" dy="21" font-size="12" font-weight="400" fill="#334155">frame-buffer flush</tspan><tspan x="627.5" dy="19" font-size="12" font-weight="400" fill="#334155">render_page()</tspan></text>
+    <text x="770.5" y="198">alarm.cpp<tspan x="770.5" dy="21" font-size="12" font-weight="400" fill="#334155">evaluateTemperature()</tspan><tspan x="770.5" dy="19" font-size="12" font-weight="400" fill="#334155">buzzer_write()</tspan></text>
+    <text x="913.5" y="198">system_state.cpp<tspan x="913.5" dy="21" font-size="12" font-weight="400" fill="#334155">evaluateSystemState()</tspan><tspan x="913.5" dy="19" font-size="12" font-weight="400" fill="#334155">pure, header-only</tspan></text>
+    <text x="1056.5" y="198">rtos_objects.cpp<tspan x="1056.5" dy="21" font-size="12" font-weight="400" fill="#334155">serial_write()</tspan><tspan x="1056.5" dy="19" font-size="12" font-weight="400" fill="#334155">+ serialMutex</tspan></text>
+  </g>
+
+  <!-- ================= row 3: tasks ================= -->
+  <g fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5">
+    <rect x="130" y="272" width="137" height="84" rx="8"/>
+    <rect x="273" y="272" width="137" height="84" rx="8"/>
+    <rect x="416" y="272" width="137" height="84" rx="8"/>
+    <rect x="559" y="272" width="137" height="84" rx="8"/>
+    <rect x="702" y="272" width="137" height="84" rx="8"/>
+    <rect x="845" y="272" width="137" height="84" rx="8"/>
+    <rect x="988" y="272" width="137" height="84" rx="8"/>
+  </g>
+  <g text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">
+    <text x="198.5" y="302">SensorTask<tspan x="198.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 2 &#183; 256 w</tspan><tspan x="198.5" dy="19" font-size="12" font-weight="400" fill="#334155">period 2000 ms</tspan></text>
+    <text x="341.5" y="302">MotionTask<tspan x="341.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 3 &#183; 128 w</tspan><tspan x="341.5" dy="19" font-size="12" font-weight="400" fill="#334155">10 ms block</tspan></text>
+    <text x="484.5" y="302">InputTask<tspan x="484.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 3 &#183; 256 w</tspan><tspan x="484.5" dy="19" font-size="12" font-weight="400" fill="#334155">2 ms block</tspan></text>
+    <text x="627.5" y="302">DisplayTask<tspan x="627.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 1 &#183; 256 w</tspan><tspan x="627.5" dy="19" font-size="12" font-weight="400" fill="#334155">50 ms bounded wait</tspan></text>
+    <text x="770.5" y="302">AlarmTask<tspan x="770.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 2 &#183; 256 w</tspan><tspan x="770.5" dy="19" font-size="12" font-weight="400" fill="#334155">queue blocking</tspan></text>
+    <text x="913.5" y="302">StateTask<tspan x="913.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 3 &#183; 192 w</tspan><tspan x="913.5" dy="19" font-size="12" font-weight="400" fill="#334155">15 s event wait</tspan></text>
+    <text x="1056.5" y="302">TaskA / TaskB<tspan x="1056.5" dy="21" font-size="12" font-weight="400" fill="#334155">priority 1 &#183; 128 w</tspan><tspan x="1056.5" dy="19" font-size="12" font-weight="400" fill="#334155">1000 ms block</tspan></text>
+  </g>
+
+  <!-- ================= row 4: published results ================= -->
+  <g fill="#fff7ed" stroke="#ea580c" stroke-width="1.5">
+    <rect x="130" y="376" width="137" height="84" rx="8"/>
+    <rect x="273" y="376" width="137" height="84" rx="8"/>
+    <rect x="416" y="376" width="137" height="84" rx="8"/>
+    <rect x="559" y="376" width="137" height="84" rx="8"/>
+    <rect x="702" y="376" width="137" height="84" rx="8"/>
+    <rect x="845" y="376" width="137" height="84" rx="8"/>
+    <rect x="988" y="376" width="137" height="84" rx="8"/>
+  </g>
+  <g text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">
+    <text x="198.5" y="406">SensorData &#8594;<tspan x="198.5" dy="21" font-size="12" font-weight="400" fill="#334155">displayQueue +</tspan><tspan x="198.5" dy="19" font-size="12" font-weight="400" fill="#334155">alarmQueue</tspan></text>
+    <text x="341.5" y="414">EVENT_MOTION<tspan x="341.5" dy="22" font-size="12" font-weight="400" fill="#334155">'Motion: detected'</tspan></text>
+    <text x="484.5" y="414">modeQueue<tspan x="484.5" dy="22" font-size="12" font-weight="400" fill="#334155">'Page: &lt;name&gt;'</tspan></text>
+    <text x="627.5" y="414">one OLED page<tspan x="627.5" dy="22" font-size="12" font-weight="400" fill="#334155">owns I2C1 alone</tspan></text>
+    <text x="770.5" y="414">buzzer line<tspan x="770.5" dy="22" font-size="12" font-weight="400" fill="#334155">+ EVENT_ALARM</tspan></text>
+    <text x="913.5" y="406">EVENT_ACTIVE<tspan x="913.5" dy="21" font-size="12" font-weight="400" fill="#334155">'State: ACTIVE'</tspan><tspan x="913.5" dy="19" font-size="12" font-weight="400" fill="#334155">'State: INACTIVE'</tspan></text>
+    <text x="1056.5" y="406">USART1 console<tspan x="1056.5" dy="21" font-size="12" font-weight="400" fill="#334155">115200 8N1</tspan><tspan x="1056.5" dy="19" font-size="12" font-weight="400" fill="#334155">all tasks but Display</tspan></text>
+  </g>
+
+  <!-- ================= layer arrows ================= -->
+  <g stroke="#475569" stroke-width="2" marker-end="url(#ar)">
+    <line x1="198.5" y1="150" x2="198.5" y2="166"/>
+    <line x1="341.5" y1="150" x2="341.5" y2="166"/>
+    <line x1="484.5" y1="150" x2="484.5" y2="166"/>
+    <line x1="627.5" y1="150" x2="627.5" y2="166"/>
+    <line x1="770.5" y1="150" x2="770.5" y2="166"/>
+    <line x1="913.5" y1="150" x2="913.5" y2="166"/>
+    <line x1="1056.5" y1="150" x2="1056.5" y2="166"/>
+    <line x1="198.5" y1="254" x2="198.5" y2="270"/>
+    <line x1="341.5" y1="254" x2="341.5" y2="270"/>
+    <line x1="484.5" y1="254" x2="484.5" y2="270"/>
+    <line x1="627.5" y1="254" x2="627.5" y2="270"/>
+    <line x1="770.5" y1="254" x2="770.5" y2="270"/>
+    <line x1="913.5" y1="254" x2="913.5" y2="270"/>
+    <line x1="1056.5" y1="254" x2="1056.5" y2="270"/>
+    <line x1="198.5" y1="358" x2="198.5" y2="374"/>
+    <line x1="341.5" y1="358" x2="341.5" y2="374"/>
+    <line x1="484.5" y1="358" x2="484.5" y2="374"/>
+    <line x1="627.5" y1="358" x2="627.5" y2="374"/>
+    <line x1="770.5" y1="358" x2="770.5" y2="374"/>
+    <line x1="913.5" y1="358" x2="913.5" y2="374"/>
+    <line x1="1056.5" y1="358" x2="1056.5" y2="374"/>
+  </g>
+
+  <text x="24" y="488" font-size="12" fill="#475569">Each column is owned by one module and one task: no other task touches that module's hardware.</text>
+  <text x="24" y="506" font-size="12" fill="#475569">DisplayTask is the only writer of the OLED (I2C1), and every serial line funnels through serial_write() in rtos_objects.cpp.</text>
+</svg>
