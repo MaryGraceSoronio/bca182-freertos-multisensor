@@ -1,6 +1,6 @@
 # A FreeRTOS Multisensor Room Monitor on an STM32 Blue Pill
 
-> **Draft status — read before publishing.** This is the complete, copy-paste-ready Hackster.io post required by sections 61–63 of the BCA182 laboratory specification. It has **not** been published anywhere: the repository is still local-only and every link below is either an in-repo file path or an explicit placeholder. Finish the *Publication checklist (manual steps)* at the very end before the post goes live.
+> **Draft status — read before publishing.** This is the complete, copy-paste-ready Hackster.io post required by sections 61–63 of the BCA182 laboratory specification. It has **not** been published anywhere yet: the repository itself is already public at `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`, so every link below is either that URL or an in-repo file path — there are no placeholders left to fill. Finish the *Publication checklist (manual steps)* at the very end before the post goes live.
 
 An STM32 Blue Pill reads temperature and humidity, measures ambient light, watches a PIR motion sensor, shows all of it on a small OLED, buzzes when the room gets too warm, and puts the display to sleep when nobody has walked past for fifteen seconds. The parts list is ordinary; the interesting part is the structure — eight FreeRTOS tasks, three queues, one event group and one mutex, each with a stated job, a stated priority and a stated reason, backed by unit tests, static analysis, a serial log from a headless simulator run, and three deliberate "let's break it" experiments.
 
@@ -181,15 +181,17 @@ The four functional-test rows that depend on those interactions were verified wi
 
 ## GitHub Repository
 
-**Source code:** `https://github.com/<your-username>/bca182-freertos-multisensor`
+**Source code:** `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`
 
-> **The repository is not yet public.** It exists locally with its full commit history — one commit per engineering milestone, no bulk commits — and has not been pushed to GitHub. Replace `<your-username>` above with the real account name when the repository is published, then update this line before submitting the post.
+> **The repository is public** at `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`, with its full commit history — one commit per engineering milestone, no bulk commits — pushed to `main` and kept in sync with every documentation update. This link is the one to use when publishing this post.
 
 What is in it:
 
 ```
 include/  src/     firmware - one module per subsystem, main.cpp only starts things
 test/     29 host unit tests + the stubs the host build resolves
+test/wokwi/  the FT-01..FT-10 functional-test harness: 5 scenario files
+          and the harness diagram, with reproduction commands
 docs/     laboratory report (md + pdf), static-analysis table,
           functional-verification record, fault experiments, this article
 assets/   BSD licence text for the font table
@@ -210,11 +212,12 @@ diagram.json  wokwi.toml  platformio.ini   the simulation and build of record
 
 ### Publication checklist (manual steps)
 
-Actions for the person publishing this draft — none of this has been done automatically, and none of it can be done from inside the repository:
+Actions for the person publishing this draft — none of these can be done from
+inside the repository. The repository side is already finished: `main` has been
+pushed to `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`,
+the repository is **Public**, and every placeholder URL above has been replaced
+with the real one. What remains is the Hackster.io work itself:
 
-1. **Push the repository to GitHub** from the repository root: `git remote add origin https://github.com/<your-username>/bca182-freertos-multisensor.git`, then `git push -u origin main`.
-2. **Set the GitHub repository visibility to Public.**
-3. **Replace `<your-username>`** in the *GitHub Repository* section above with the real URL, and delete this checklist block before pasting the article into Hackster.
-4. **Publish this article on Hackster.io** — create the project, paste the sections above, and upload the five figures from `docs/images/` (`wokwi-circuit.png`, `architecture.png`, `freertos-tasks.png`, `state-machine.png`, `finished-system.png`) at the marked positions.
-5. **Add the collaborator** for BSCA accreditation: invite **Paul Rodolf P. Castor**, `paulrodolf.castor@g.msuiit.edu.ph`, as a collaborator on the Hackster project.
-6. **Confirm the GitHub link** on the published Hackster project points at the now-public repository.
+1. **Publish this article on Hackster.io** — create the project, paste the sections above, and upload the five figures from `docs/images/` (`wokwi-circuit.png`, `architecture.png`, `freertos-tasks.png`, `state-machine.png`, `finished-system.png`) at the marked positions.
+2. **Add the collaborator** for BSCA accreditation: invite **Paul Rodolf P. Castor**, `paulrodolf.castor@g.msuiit.edu.ph`, as a collaborator on the Hackster project.
+3. **Confirm the GitHub link** on the published Hackster project points at the public repository above.

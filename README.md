@@ -307,7 +307,8 @@ simulator.
 │   ├── test_alarm/            10 Unity tests for evaluateTemperature()
 │   ├── test_navigation/       11 Unity tests for page wrap-around
 │   ├── test_state/            8 Unity tests for evaluateSystemState()
-│   └── stubs/                 HAL/FreeRTOS headers the host build resolves
+│   ├── stubs/                 HAL/FreeRTOS headers the host build resolves
+│   └── wokwi/                 FT-01..FT-10 harness: 5 scenarios + harness diagram
 ├── docs/
 │   ├── laboratory-report.pdf   academic report (sections 57-60) - task table,
 │   │                           traceability matrix and engineering analysis
@@ -332,7 +333,7 @@ simulator.
 **Clone and build**
 
 ```
-git clone <your-fork-url>
+git clone https://github.com/MaryGraceSoronio/bca182-freertos-multisensor.git
 cd bca182-freertos-multisensor
 pio run
 ```
@@ -467,6 +468,11 @@ The full record - scenario inputs, serial line numbers, VCD timestamps and
 the honest limits of each run (four checks used synthetic detents/edges
 because Wokwi exposes no automation control for those parts) - is in
 [`docs/functional-verification.md`](docs/functional-verification.md).
+
+The harness that produced it is committed: [`test/wokwi/`](test/wokwi/)
+holds the five scenario files and `diagram-harness.json`, and
+[`test/wokwi/README.md`](test/wokwi/README.md) documents the exact commands,
+per-scenario timeouts and the scenario-to-FT mapping needed to re-run any row.
 
 ![Finished system](docs/images/finished-system.png)
 
