@@ -7,9 +7,13 @@ the deliverables against sections 55, 56, 57, 59 and 38/39.
 
 **Basis.** Repository state after the milestone commits that followed this
 document's first draft — `Commit functional test harness` (adds `test/wokwi/`)
-and `Resolve repository URL placeholders` (adds the public remote) — on top of
-`dff9c82` (`docs/hackster-article.md` + the README cross-link). Verification
-re-run for this audit:
+and `Resolve repository URL placeholders` (replaces the placeholder URLs) —
+which sit on top of `dff9c82` (`docs/hackster-article.md` + the README
+cross-link). Between the first push of this audit and its second, the remote
+also received two README commits made outside this session (`ce8a617`,
+`6131c3e`, title/description only); the two milestone commits of this audit
+were replayed on top of them, so no published history was rewritten.
+Verification re-run for this audit:
 
 | Command | Result |
 | --- | --- |
@@ -45,7 +49,7 @@ re-run for this audit:
 | 14 | Testing | ☐ Fault experiments completed | **DONE** | `docs/fault-experiments.md`: §49 remove blocking, §50 change priority, §51 remove serial mutex — each with the change, the observed serial/VCD symptom, the analysis and the verified restoration (`git diff -- src include` empty afterwards). Commit `4973758`. |
 | 15 | Quality | ☐ pio check completed | **DONE** | `pio check` → **0 high / 0 medium / 35 low** (21 firmware pass + 14 native pass), reproduced for this audit. |
 | 16 | Quality | ☐ Findings analyzed and significant warnings addressed | **DONE** | `docs/static-analysis.md`: §3 summary, §4 the 3 findings resolved by code changes, §5 full §46-style table (Finding / File-Line / Cause / Resolution) for all 35, §6 reproduction. Commit `8342448` + `3269dfe`. |
-| 17 | GitHub | ☐ Public repository | **DONE** | Repository is published: remote `origin` = `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`, visibility **Public**, `main` pushed (it stood at `13d6e34` when this row was rewritten; the harness and URL-placeholder commits are pushed on top of it). Verified with `git status -sb` → `main...origin/main`, no ahead/behind, and `git ls-remote --heads origin` returning the same tip. History is milestone-per-commit, nothing pushed as a bulk commit. |
+| 17 | GitHub | ☐ Public repository | **DONE** | Repository is published: remote `origin` = `https://github.com/MaryGraceSoronio/bca182-freertos-multisensor`, visibility **Public**, `main` pushed. Evidence: `git status -sb` → `main...origin/main` with no ahead/behind and `git ls-remote --heads origin` returning the local tip, both after the push of this audit. The remote had stood at `13d6e34` when this audit began and at `6131c3e` (two concurrent README edits) at push time; the two milestone commits of this audit were rebased onto that tip rather than force-pushed over it. History is milestone-per-commit, nothing pushed as a bulk commit. |
 | 18 | GitHub | ☐ Meaningful commit history | **DONE** | One commit per engineering step — 30 of them for M0–M16, followed by the M17 documentation commits; nothing is a bulk commit and no §53-banned message (`update`, `changes`, `working`, `final`, `final2`, `finalfinal`) appears as a subject. Examples: `c82b31b Initialize STM32 PlatformIO project`, `043308a Add sensor data queue`, `b5fb6b8 Protect serial output with a mutex`, `4973758 Run deliberate FreeRTOS fault experiments`, `7bd389d Write laboratory report`, `dff9c82 Draft Hackster.io portfolio post`. |
 | 19 | GitHub | ☐ Professional README | **DONE** | `README.md` (587 lines) contains **all 21 §55 headings in order**, all 5 §56 visuals with `*Figure N - …*` captions, build/test/analysis/verification sections, and no unfinished-work markers. Audience is the engineer/evaluator required by §54, not an academic worksheet. Commit `b60b50d`. |
 | 20 | GitHub | ☐ Architecture diagrams | **DONE** | 5 visuals exist in `docs/images/` as PNG **and** editable SVG: `wokwi-circuit`, `architecture`, `freertos-tasks`, `state-machine`, `finished-system`. Cross-checked against source for this audit (see §3 below): priorities, stack depths, periods, event-bit numbers, pin names and part/connection counts all agree. |
